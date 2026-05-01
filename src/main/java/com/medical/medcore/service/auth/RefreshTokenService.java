@@ -9,4 +9,6 @@ public interface RefreshTokenService {
     RefreshToken validate(String rawToken);
 
     void revoke(RefreshToken token);
+
+    void revokeAllByUserIdAndTenantId(Long userId, Long tenantId);
 }

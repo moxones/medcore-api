@@ -1,8 +1,7 @@
 package com.medical.medcore.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -11,6 +10,9 @@ import java.time.LocalDate;
 @Table(name = "persons")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Person {
 
     @Id
@@ -35,11 +37,12 @@ public class Person {
     @Column(name = "phone")
     private String phone;
 
-    @Column(name = "email")
-    private String email;
+    @Column(name = "contact_email", length = 150)
+    private String contactEmail;
 
-    @Column(name = "is_active")
-    private Boolean isActive;
+
+    @Column(name = "profile_completed")
+    private Boolean profileCompleted;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -52,4 +55,13 @@ public class Person {
 
     @Column(name = "updated_by")
     private Long updatedBy;
+
+    public void recalculateProfileCompleted(boolean hasDocument) {
+        this.profileCompleted =
+                this.phone != null && !this.phone.trim().isEmpty() &&
+                        this.gender != null && !this.gender.trim().isEmpty() &&
+                        this.birthDate != null &&
+                        this.contactEmail != null && !this.contactEmail.trim().isEmpty() &&
+                        hasDocument;
+    }
 }

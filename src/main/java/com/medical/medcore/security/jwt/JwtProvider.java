@@ -28,10 +28,16 @@ public class JwtProvider {
     }
 
     public Claims extractClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            throw new com.medical.medcore.config.exception.BadRequestException("El token de acceso ha expirado");
+        } catch (JwtException e) {
+            throw new com.medical.medcore.config.exception.BadRequestException("El token de acceso es inválido");
+        }
     }
 }

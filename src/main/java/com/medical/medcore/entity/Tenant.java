@@ -2,12 +2,11 @@ package com.medical.medcore.entity;
 
 import com.medical.medcore.entity.enums.TenantStatus;
 import jakarta.persistence.*;
-import jakarta.persistence.Id;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
-
-import org.springframework.data.annotation.*;
+import lombok.*;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
@@ -17,6 +16,8 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @EntityListeners(AuditingEntityListener.class)
 public class Tenant {
 
@@ -33,6 +34,15 @@ public class Tenant {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private TenantStatus status;
+
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Column(name = "primary_color", length = 20)
+    private String primaryColor;
+
+    @Column(name = "subtitle", length = 150)
+    private String subtitle;
 
     @CreatedDate
     @Column(name = "created_at", updatable = false)
