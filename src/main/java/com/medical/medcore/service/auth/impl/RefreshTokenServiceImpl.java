@@ -43,17 +43,34 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     public RefreshToken validate(String rawToken) {
 
-        return repository.findAll().stream()
-                .filter(rt -> !rt.getIsRevoked())
+        RefreshToken token = repository.findAll().stream()
                 .filter(rt -> passwordEncoder.matches(rawToken, rt.getToken()))
-                .filter(rt -> rt.getExpiresAt().isAfter(LocalDateTime.now()))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+                .orElseThrow(() -> new com.medical.medcore.config.exception.BadRequestException("Token no encontrado o inválido"));
+
+        if (token.getIsRevoked()) {
+            throw new com.medical.medcore.config.exception.BadRequestException("El refresh token ha sido revocado");
+        }
+
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            token.revoke();
+            repository.save(token);
+            throw new com.medical.medcore.config.exception.BadRequestException("El refresh token ha expirado");
+        }
+
+        return token;
     }
 
     @Override
     public void revoke(RefreshToken token) {
         token.revoke();
         repository.save(token);
+    }
+
+    @Override
+    public void revokeAllByUserIdAndTenantId(Long userId, Long tenantId) {
+        java.util.List<RefreshToken> activeTokens = repository.findByUserIdAndTenantIdAndIsRevokedFalse(userId, tenantId);
+        activeTokens.forEach(RefreshToken::revoke);
+        repository.saveAll(activeTokens);
     }
 }
