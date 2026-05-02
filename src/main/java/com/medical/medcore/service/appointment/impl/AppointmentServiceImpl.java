@@ -1,5 +1,6 @@
 package com.medical.medcore.service.appointment.impl;
 
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.CancelAppointmentRequest;
 import com.medical.medcore.dto.request.CreateAppointmentRequest;
 import com.medical.medcore.dto.request.RescheduleAppointmentRequest;
@@ -14,6 +15,7 @@ import com.medical.medcore.service.appointment.AppointmentService;
 import com.medical.medcore.types.PageableResponse;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -41,7 +43,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional
     public AppointmentResponse create(CreateAppointmentRequest request) {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
 
         Patient patient = new Patient();
         patient.setId(request.patientId());
@@ -68,7 +70,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional(readOnly = true)
     public PageableResponse<AppointmentResponse> findAll(int page, int size, Long doctorId, Long statusId, LocalDate date) {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
         Pageable pageable = PageRequest.of(page, size, Sort.by("scheduledAt").descending());
 
         LocalDateTime startDate = date != null ? date.atStartOfDay() : null;
@@ -85,7 +87,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getCalendar(LocalDate startDate, LocalDate endDate, Long doctorId, Long branchId) {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
         
         List<Appointment> appointments = appointmentRepository.findForCalendar(
                 tenantId, 
@@ -102,7 +104,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional(readOnly = true)
     public List<TimeSlotResponse> getAvailableSlots(Long doctorId, LocalDate date) {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
         
         // 1. Obtener citas existentes ese día
         List<Appointment> existingAppointments = appointmentRepository.findByDoctorAndDate(
@@ -159,12 +161,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
     
     private Appointment getOwnedAppointment(Long id) {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
         Appointment appointment = appointmentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found"));
+                .orElseThrow(() -> new NotFoundException("Cita no encontrada"));
         
         if (!appointment.getTenantId().equals(tenantId)) {
-            throw new RuntimeException("Unauthorized access to appointment");
+            throw new AccessDeniedException("No tienes acceso a esta cita");
         }
         return appointment;
     }

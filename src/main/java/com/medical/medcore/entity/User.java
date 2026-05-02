@@ -2,6 +2,8 @@ package com.medical.medcore.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -14,6 +16,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EntityListeners(AuditingEntityListener.class)
 public class User {
 
     @Id
@@ -36,6 +39,7 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

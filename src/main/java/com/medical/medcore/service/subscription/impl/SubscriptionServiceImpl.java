@@ -1,5 +1,6 @@
 package com.medical.medcore.service.subscription.impl;
 
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.CreateSubscriptionRequest;
 import com.medical.medcore.dto.request.UpdateSubscriptionRequest;
 import com.medical.medcore.dto.response.SubscriptionResponse;
@@ -26,7 +27,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Transactional
     public SubscriptionResponse createSubscription(CreateSubscriptionRequest request) {
         Plan plan = planRepository.findById(request.getPlanId())
-                .orElseThrow(() -> new RuntimeException("Plan not found"));
+                .orElseThrow(() -> new NotFoundException("Plan no encontrado"));
 
         Subscription subscription = Subscription.builder()
                 .tenantId(request.getTenantId())
@@ -43,10 +44,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Transactional
     public SubscriptionResponse updateSubscription(Long id, UpdateSubscriptionRequest request) {
         Subscription subscription = subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subscription not found"));
+                .orElseThrow(() -> new NotFoundException("Suscripción no encontrada"));
 
         Plan plan = planRepository.findById(request.getPlanId())
-                .orElseThrow(() -> new RuntimeException("Plan not found"));
+                .orElseThrow(() -> new NotFoundException("Plan no encontrado"));
 
         subscription.setPlan(plan);
         subscription.setStartDate(request.getStartDate());
@@ -59,7 +60,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     public SubscriptionResponse getSubscriptionById(Long id) {
         return mapToResponse(subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subscription not found")));
+                .orElseThrow(() -> new NotFoundException("Suscripción no encontrada")));
     }
 
     @Override
@@ -73,7 +74,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Transactional
     public void deleteSubscription(Long id) {
         if (!subscriptionRepository.existsById(id)) {
-            throw new RuntimeException("Subscription not found");
+            throw new NotFoundException("Suscripción no encontrada");
         }
         subscriptionRepository.deleteById(id);
     }

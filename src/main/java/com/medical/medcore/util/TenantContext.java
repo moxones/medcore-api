@@ -1,7 +1,9 @@
 package com.medical.medcore.util;
 
+import com.medical.medcore.config.exception.TenantNotFoundException;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.security.access.AccessDeniedException;
 
 @Getter
 @Setter
@@ -22,6 +24,22 @@ public class TenantContext {
 
     public static Long getCurrentUserId() {
         return CURRENT.get() != null ? CURRENT.get().getUserId() : null;
+    }
+
+    public static Long requireTenantId() {
+        Long tenantId = getTenantId();
+        if (tenantId == null) {
+            throw new TenantNotFoundException("Tenant no resuelto");
+        }
+        return tenantId;
+    }
+
+    public static Long requireCurrentUserId() {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            throw new AccessDeniedException("Usuario autenticado no resuelto");
+        }
+        return userId;
     }
 
     public static void clear() {

@@ -1,5 +1,7 @@
 package com.medical.medcore.service.doctor;
 
+import com.medical.medcore.config.exception.BadRequestException;
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.entity.Doctor;
 import com.medical.medcore.repository.DoctorRepository;
 import com.medical.medcore.types.PageableResponse;
@@ -16,16 +18,27 @@ public class DoctorService {
 
     public PageableResponse<Doctor> findAll(int page, int size) {
         Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BadRequestException("Tenant no disponible");
+        }
         return PageableResponse.from(doctorRepository.findByTenantIdAndIsActiveTrue(tenantId, PageRequest.of(page, size)));
     }
 
     public Doctor findById(Long id) {
-        return doctorRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
-                .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BadRequestException("Tenant no disponible");
+        }
+        return doctorRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Doctor no encontrado"));
     }
 
     public Doctor create(Doctor doctor) {
-        doctor.setTenantId(TenantContext.getTenantId());
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BadRequestException("Tenant no disponible");
+        }
+        doctor.setTenantId(tenantId);
         return doctorRepository.save(doctor);
     }
 }

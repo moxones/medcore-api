@@ -27,31 +27,32 @@ public class PatientServiceImpl implements PatientService {
     private final PatientSearchRepository patientSearchRepository;
 
 
-    @Override
+@Override
     public PatientResponse create(CreatePatientRequest request) {
 
-        Long tenantId = TenantContext.getTenantId();
-
-        if (tenantId == null) {
-            throw new BadRequestException("Tenant no resuelto");
-        }
+        Long tenantId = TenantContext.requireTenantId();
 
         DocumentType docType = documentTypeRepository.findByCode(request.getDocumentTypeCode())
                 .orElseThrow(() -> new BadRequestException("Tipo de documento inválido"));
 
         PersonDocument existingDoc = personDocumentRepository
-                .findByDocumentTypeIdAndDocumentNumber(docType.getId(), request.getDocumentNumber())
+                .findByDocumentTypeIdAndDocumentNumberAndTenantId(docType.getId(), request.getDocumentNumber(), tenantId)
                 .orElse(null);
 
         Person person;
 
         if (existingDoc != null) {
             person = existingDoc.getPerson();
+
+            if (!person.getTenantId().equals(tenantId)) {
+                throw new BadRequestException("Documento ya existe en otro tenant");
+            }
         } else {
             person = Person.builder()
                     .firstName(request.getFirstName())
                     .lastName(request.getLastName())
                     .birthDate(request.getBirthDate())
+                    .tenantId(tenantId)
                     .build();
 
             person.recalculateProfileCompleted(true);
@@ -86,7 +87,7 @@ public class PatientServiceImpl implements PatientService {
     @Override
     public List<PatientResponse> findAll() {
 
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
 
         return patientRepository.findAllByTenantId(tenantId)
                 .stream()
@@ -97,7 +98,7 @@ public class PatientServiceImpl implements PatientService {
     @Override
     public PatientResponse findById(Long id) {
 
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
 
         Patient patient = patientRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
@@ -108,8 +109,8 @@ public class PatientServiceImpl implements PatientService {
     @Override
     public void updateProfile(UpdateProfileRequest request) {
 
-        Long tenantId = TenantContext.getTenantId();
-        Long userId = TenantContext.getCurrentUserId();
+        Long tenantId = TenantContext.requireTenantId();
+        Long userId = TenantContext.requireCurrentUserId();
 
         User user = userRepository.findByIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
@@ -147,7 +148,7 @@ public class PatientServiceImpl implements PatientService {
     @Override
     public List<PatientResponse> search(String term) {
 
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
 
         List<Patient> patients;
 

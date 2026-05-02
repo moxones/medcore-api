@@ -1,6 +1,7 @@
 package com.medical.medcore.service.user;
 
 import com.medical.medcore.dto.request.ChangePasswordRequest;
+import com.medical.medcore.dto.request.CreateSuperAdminUserRequest;
 import com.medical.medcore.dto.request.CreateUserRequest;
 import com.medical.medcore.dto.request.UpdateUserRequest;
 import com.medical.medcore.dto.request.UpdateUserStatusRequest;
@@ -21,4 +22,12 @@ public interface UserService {
     void updateStatus(Long id, UpdateUserStatusRequest request);
 
     void changePassword(Long id, ChangePasswordRequest request);
+
+    UserResponse createForTenant(CreateSuperAdminUserRequest request);
+
+    List<UserResponse> findAllByTenant(Long tenantId);
+
+    UserResponse updateForSuperAdmin(Long id, UpdateUserRequest request);
+
+    UserResponse assignRoles(Long id, List<Long> roleIds);
 }

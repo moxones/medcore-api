@@ -1,7 +1,10 @@
 package com.medical.medcore.security.config;
 
 import com.medical.medcore.security.jwt.JwtFilter;
+import com.medical.medcore.types.ApiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -23,9 +26,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, ObjectMapper objectMapper) {
         this.jwtFilter = jwtFilter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -43,7 +48,10 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "No autenticado");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            writeErrorResponse(response, HttpServletResponse.SC_FORBIDDEN, "Acceso denegado");
                         })
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -62,5 +70,11 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    private void writeErrorResponse(HttpServletResponse response, int status, String message) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getOutputStream(), new ApiResponse<>(false, null, message));
     }
 }

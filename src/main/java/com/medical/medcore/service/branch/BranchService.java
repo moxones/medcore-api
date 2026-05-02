@@ -1,5 +1,7 @@
 package com.medical.medcore.service.branch;
 
+import com.medical.medcore.config.exception.BadRequestException;
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.entity.Branch;
 import com.medical.medcore.repository.BranchRepository;
 import com.medical.medcore.types.PageableResponse;
@@ -16,16 +18,27 @@ public class BranchService {
 
     public PageableResponse<Branch> findAll(int page, int size) {
         Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BadRequestException("Tenant no disponible");
+        }
         return PageableResponse.from(branchRepository.findByTenantIdAndIsActiveTrue(tenantId, PageRequest.of(page, size)));
     }
 
     public Branch findById(Long id) {
-        return branchRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
-                .orElseThrow(() -> new RuntimeException("Branch no encontrada"));
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BadRequestException("Tenant no disponible");
+        }
+        return branchRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Sucursal no encontrada"));
     }
 
     public Branch create(Branch branch) {
-        branch.setTenantId(TenantContext.getTenantId());
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BadRequestException("Tenant no disponible");
+        }
+        branch.setTenantId(tenantId);
         return branchRepository.save(branch);
     }
 }

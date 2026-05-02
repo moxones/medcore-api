@@ -1,5 +1,7 @@
 package com.medical.medcore.service.tenant.impl;
 
+import com.medical.medcore.config.exception.BadRequestException;
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.CreateTenantRequest;
 import com.medical.medcore.dto.request.UpdateTenantRequest;
 import com.medical.medcore.dto.response.TenantInfoResponse;
@@ -24,10 +26,10 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     public TenantInfoResponse getTenantInfo() {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
 
         Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
+                .orElseThrow(() -> new NotFoundException("Tenant no encontrado"));
 
         return TenantInfoResponse.builder()
                 .name(tenant.getName())
@@ -40,7 +42,7 @@ public class TenantServiceImpl implements TenantService {
     @Transactional
     public TenantResponse createTenant(CreateTenantRequest request) {
         if (tenantRepository.existsBySubdomain(request.getSubdomain())) {
-            throw new RuntimeException("Subdomain already exists");
+            throw new BadRequestException("El subdominio ya existe");
         }
 
         Tenant tenant = Tenant.builder()
@@ -60,7 +62,7 @@ public class TenantServiceImpl implements TenantService {
     @Transactional
     public TenantResponse updateTenant(Long id, UpdateTenantRequest request) {
         Tenant tenant = tenantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
+                .orElseThrow(() -> new NotFoundException("Tenant no encontrado"));
 
         tenant.setName(request.getName());
         tenant.setLogoUrl(request.getLogoUrl());
@@ -75,7 +77,7 @@ public class TenantServiceImpl implements TenantService {
     @Override
     public TenantResponse getTenantById(Long id) {
         Tenant tenant = tenantRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
+                .orElseThrow(() -> new NotFoundException("Tenant no encontrado"));
         return mapToResponse(tenant);
     }
 
@@ -91,7 +93,7 @@ public class TenantServiceImpl implements TenantService {
     @Transactional
     public void deleteTenant(Long id) {
         if (!tenantRepository.existsById(id)) {
-            throw new RuntimeException("Tenant not found");
+            throw new NotFoundException("Tenant no encontrado");
         }
         tenantRepository.deleteById(id);
     }

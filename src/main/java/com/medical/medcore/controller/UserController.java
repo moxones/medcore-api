@@ -1,5 +1,6 @@
 package com.medical.medcore.controller;
 
+import com.medical.medcore.dto.request.AssignRolesRequest;
 import com.medical.medcore.dto.request.CreateUserRequest;
 import com.medical.medcore.dto.request.UpdateUserRequest;
 import com.medical.medcore.dto.request.UpdateUserStatusRequest;
@@ -70,6 +71,16 @@ public class UserController {
 
         return ResponseEntity.ok(
                 new ApiResponse<>(true, null, "Estado actualizado")
+        );
+    }
+
+    @RequireAdminOrSuperAdmin
+    @PostMapping("/{id}/roles")
+    public ResponseEntity<ApiResponse<UserResponse>> assignRoles(
+            @PathVariable Long id,
+            @Valid @RequestBody AssignRolesRequest request) {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, userService.assignRoles(id, request.getRoleIds()), "Roles asignados")
         );
     }
 }

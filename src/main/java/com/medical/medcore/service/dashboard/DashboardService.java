@@ -23,7 +23,7 @@ public class DashboardService {
     private static final Long STATUS_COMPLETED = 3L;
 
     public DashboardSummaryResponse getSummaryMetrics() {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
         
         LocalDate today = LocalDate.now();
         LocalDateTime startOfToday = today.atStartOfDay();
@@ -58,7 +58,7 @@ public class DashboardService {
     }
 
     public java.util.List<com.medical.medcore.dto.response.DoctorProductivityResponse> getDoctorProductivity() {
-        Long tenantId = TenantContext.getTenantId();
+        Long tenantId = TenantContext.requireTenantId();
         LocalDate today = LocalDate.now();
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
         LocalDateTime endOfMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();

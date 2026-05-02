@@ -1,5 +1,6 @@
 package com.medical.medcore.controller;
 
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.entity.MedicalRecord;
 import com.medical.medcore.repository.MedicalRecordRepository;
 import com.medical.medcore.types.ApiResponse;
@@ -18,7 +19,7 @@ public class MedicalRecordController {
     @GetMapping("/patient/{patientId}")
     public ResponseEntity<ApiResponse<MedicalRecord>> findByPatient(@PathVariable Long patientId) {
         MedicalRecord record = recordRepository.findByPatientId(patientId)
-                .orElseThrow(() -> new RuntimeException("Record not found"));
+                .orElseThrow(() -> new NotFoundException("Historial clínico no encontrado"));
         return ResponseEntity.ok(new ApiResponse<>(true, record, "Historial clínico"));
     }
 

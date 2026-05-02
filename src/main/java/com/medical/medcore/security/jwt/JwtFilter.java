@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,7 +49,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 Long userId = Long.valueOf(claims.getSubject());
                 Long tenantId = ((Number) claims.get("tenantId")).longValue();
 
-                List<String> roles = (List<String>) claims.get("roles");
+                List<String> roles = extractRoles(claims.get("roles"));
 
                 TenantContext.set(tenantId, userId);
                 MDC.put("tenantId", String.valueOf(tenantId));
@@ -69,5 +71,16 @@ public class JwtFilter extends OncePerRequestFilter {
             MDC.clear();
             SecurityContextHolder.clearContext();
         }
+    }
+
+    private List<String> extractRoles(Object rolesClaim) {
+        if (!(rolesClaim instanceof Collection<?> rawRoles)) {
+            return Collections.emptyList();
+        }
+
+        return rawRoles.stream()
+                .filter(role -> role != null && !role.toString().isBlank())
+                .map(Object::toString)
+                .toList();
     }
 }

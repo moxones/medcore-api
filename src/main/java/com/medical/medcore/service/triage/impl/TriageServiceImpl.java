@@ -1,5 +1,6 @@
 package com.medical.medcore.service.triage.impl;
 
+import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.TriageRequest;
 import com.medical.medcore.dto.response.TriageResponse;
 import com.medical.medcore.entity.Appointment;
@@ -9,6 +10,7 @@ import com.medical.medcore.repository.TriageRepository;
 import com.medical.medcore.service.triage.TriageService;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,19 +24,22 @@ public class TriageServiceImpl implements TriageService {
     @Override
     @Transactional
     public TriageResponse createOrUpdate(TriageRequest request) {
-        Long tenantId = TenantContext.getTenantId();
-        
+        Long tenantId = TenantContext.requireTenantId();
+
         Appointment appointment = appointmentRepository.findById(request.appointmentId())
-                .orElseThrow(() -> new RuntimeException("Appointment not found"));
-                
+                .orElseThrow(() -> new NotFoundException("Cita no encontrada"));
+
         if (!appointment.getTenantId().equals(tenantId)) {
-            throw new RuntimeException("Unauthorized");
+            throw new AccessDeniedException("No tienes acceso a esta cita");
         }
 
         Triage triage = triageRepository.findByAppointmentId(appointment.getId())
-                .orElse(new Triage());
+                .orElseGet(() -> {
+                    Triage newTriage = new Triage();
+                    newTriage.setAppointment(appointment);
+                    return newTriage;
+                });
 
-        triage.setAppointment(appointment);
         triage.setWeight(request.weight());
         triage.setHeight(request.height());
         triage.setTemperature(request.temperature());
@@ -42,9 +47,13 @@ public class TriageServiceImpl implements TriageService {
         triage.setBloodPressure(request.bloodPressure());
         triage.setNotes(request.notes());
 
+        Long currentUserId = TenantContext.getCurrentUserId();
+        if (currentUserId != null) {
+            triage.setCreatedBy(currentUserId);
+        }
+
         triage = triageRepository.save(triage);
-        
-        // El frontend probablemente querrá que el flow_status cambie
+
         appointment.setFlowStatus("TRIAGE_COMPLETED");
         appointmentRepository.save(appointment);
 
@@ -54,15 +63,15 @@ public class TriageServiceImpl implements TriageService {
     @Override
     @Transactional(readOnly = true)
     public TriageResponse findByAppointment(Long appointmentId) {
-        Long tenantId = TenantContext.getTenantId();
-        
+        Long tenantId = TenantContext.requireTenantId();
+
         Triage triage = triageRepository.findByAppointmentId(appointmentId)
-                .orElseThrow(() -> new RuntimeException("Triage not found"));
-                
+                .orElseThrow(() -> new NotFoundException("Triaje no encontrado"));
+
         if (!triage.getAppointment().getTenantId().equals(tenantId)) {
-            throw new RuntimeException("Unauthorized");
+            throw new AccessDeniedException("No tienes acceso a este triaje");
         }
-        
+
         return mapToResponse(triage);
     }
     

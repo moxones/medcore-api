@@ -58,11 +58,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse register(RegisterRequest request) {
 
-        Long tenantId = TenantContext.getTenantId();
-
-        if (tenantId == null) {
-            throw new BadRequestException("Tenant no resuelto");
-        }
+        Long tenantId = TenantContext.requireTenantId();
 
         Tenant tenant = tenantRepository
                 .findByIdAndStatus(tenantId, TenantStatus.ACTIVE)
@@ -81,7 +77,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BadRequestException("Tipo de documento inválido"));
 
         PersonDocument existingDoc = personDocumentRepository
-                .findByDocumentTypeIdAndDocumentNumber(docType.getId(), request.getDocumentNumber())
+                .findByDocumentTypeIdAndDocumentNumberAndTenantId(docType.getId(), request.getDocumentNumber(), tenantId)
                 .orElse(null);
 
         Person person;
@@ -161,11 +157,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
 
-        Long tenantId = TenantContext.getTenantId();
-
-        if (tenantId == null) {
-            throw new BadRequestException("Tenant no resuelto");
-        }
+        Long tenantId = TenantContext.requireTenantId();
 
         Tenant tenant = tenantRepository
                 .findByIdAndStatus(tenantId, TenantStatus.ACTIVE)
@@ -252,8 +244,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public UserMeResponse me() {
 
-        Long tenantId = TenantContext.getTenantId();
-        Long userId = TenantContext.getCurrentUserId();
+        Long tenantId = TenantContext.requireTenantId();
+        Long userId = TenantContext.requireCurrentUserId();
 
         User user = userRepository.findByIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));

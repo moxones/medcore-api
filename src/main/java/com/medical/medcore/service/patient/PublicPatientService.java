@@ -30,11 +30,7 @@ public class PublicPatientService {
 
     @Transactional
     public PatientResponse registerQuickPatient(QuickPatientRegistrationRequest request) {
-        Long tenantId = TenantContext.getTenantId();
-
-        if (tenantId == null) {
-            throw new BadRequestException("Tenant no resuelto");
-        }
+        Long tenantId = TenantContext.requireTenantId();
 
         tenantRepository.findByIdAndStatus(tenantId, TenantStatus.ACTIVE)
                 .orElseThrow(() -> new NotFoundException("Tenant no encontrado o inactivo"));
@@ -46,7 +42,7 @@ public class PublicPatientService {
         DocumentType docType = documentTypeRepository.findByCode(request.getDocumentTypeCode())
                 .orElseThrow(() -> new BadRequestException("Tipo de documento inválido"));
 
-        if (personDocumentRepository.findByDocumentTypeIdAndDocumentNumber(docType.getId(), request.getDocumentNumber()).isPresent()) {
+        if (personDocumentRepository.findByDocumentTypeIdAndDocumentNumberAndTenantId(docType.getId(), request.getDocumentNumber(), tenantId).isPresent()) {
             throw new BadRequestException("El documento ya se encuentra registrado");
         }
 

@@ -32,12 +32,12 @@ public class PatientController {
         return patientService.findById(id);
     }
 
-    @PutMapping("/patients/profile")
+    @PutMapping("/profile")
     public void updateProfile(@RequestBody @Valid UpdateProfileRequest request) {
         patientService.updateProfile(request);
     }
 
-    @GetMapping("/patients/search")
+    @GetMapping("/search")
     public List<PatientResponse> search(@RequestParam String term) {
         return patientService.search(term);
     }

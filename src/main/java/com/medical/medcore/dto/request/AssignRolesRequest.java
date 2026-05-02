@@ -1,5 +1,6 @@
 package com.medical.medcore.dto.request;
 
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,10 +8,8 @@ import java.util.List;
 
 @Getter
 @Setter
-public class UpdateUserRequest {
+public class AssignRolesRequest {
 
-    private String email;
-    private PersonRequest person;
+    @NotEmpty(message = "Debe enviar al menos un rol")
     private List<Long> roleIds;
-    private List<String> roles;
 }
