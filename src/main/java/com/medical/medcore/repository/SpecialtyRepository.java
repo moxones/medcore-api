@@ -9,6 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface SpecialtyRepository extends JpaRepository<Specialty, Long> {
-    List<Specialty> findByTenantIdAndIsActiveTrue(Long tenantId);
-    Optional<Specialty> findByIdAndTenantId(Long id, Long tenantId);
+    List<Specialty> findByIsActiveTrue();
+    Optional<Specialty> findByCode(String code);
+    boolean existsByCode(String code);
 }

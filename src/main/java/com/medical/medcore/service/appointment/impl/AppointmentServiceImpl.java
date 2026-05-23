@@ -1,5 +1,6 @@
 package com.medical.medcore.service.appointment.impl;
 
+import com.medical.medcore.config.exception.BadRequestException;
 import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.CancelAppointmentRequest;
 import com.medical.medcore.dto.request.CreateAppointmentRequest;
@@ -8,9 +9,18 @@ import com.medical.medcore.dto.request.UpdateAppointmentFlowRequest;
 import com.medical.medcore.dto.response.AppointmentResponse;
 import com.medical.medcore.dto.response.TimeSlotResponse;
 import com.medical.medcore.entity.Appointment;
+import com.medical.medcore.entity.AppointmentReschedule;
+import com.medical.medcore.entity.Branch;
 import com.medical.medcore.entity.Doctor;
+import com.medical.medcore.entity.DoctorSchedule;
 import com.medical.medcore.entity.Patient;
+import com.medical.medcore.entity.Person;
 import com.medical.medcore.repository.AppointmentRepository;
+import com.medical.medcore.repository.AppointmentRescheduleRepository;
+import com.medical.medcore.repository.DoctorBranchRepository;
+import com.medical.medcore.repository.DoctorRepository;
+import com.medical.medcore.repository.DoctorScheduleRepository;
+import com.medical.medcore.repository.PatientRepository;
 import com.medical.medcore.service.appointment.AppointmentService;
 import com.medical.medcore.types.PageableResponse;
 import com.medical.medcore.util.TenantContext;
@@ -28,6 +38,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,8 +46,12 @@ import java.util.stream.Collectors;
 public class AppointmentServiceImpl implements AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
-    
-    // Suponemos ID 1 para agendada y 4 para cancelada basado en una BD típica
+    private final AppointmentRescheduleRepository rescheduleRepository;
+    private final DoctorRepository doctorRepository;
+    private final DoctorBranchRepository doctorBranchRepository;
+    private final DoctorScheduleRepository doctorScheduleRepository;
+    private final PatientRepository patientRepository;
+
     private static final Long STATUS_SCHEDULED = 1L;
     private static final Long STATUS_CANCELLED = 4L;
 
@@ -45,31 +60,67 @@ public class AppointmentServiceImpl implements AppointmentService {
     public AppointmentResponse create(CreateAppointmentRequest request) {
         Long tenantId = TenantContext.requireTenantId();
 
-        Patient patient = new Patient();
-        patient.setId(request.patientId());
+        // 1. Validar que el paciente existe y pertenece al tenant
+        Patient patient = patientRepository.findByIdAndTenantId(request.patientId(), tenantId)
+                .orElseThrow(() -> new NotFoundException("Paciente no encontrado"));
 
-        Doctor doctor = new Doctor();
-        doctor.setId(request.doctorId());
+        // 2. Validar que el doctor existe, está activo y pertenece al tenant
+        Doctor doctor = doctorRepository.findByIdAndTenantId(request.doctorId(), tenantId)
+                .orElseThrow(() -> new NotFoundException("Doctor no encontrado"));
+        if (Boolean.FALSE.equals(doctor.getIsActive())) {
+            throw new BadRequestException("El doctor no está disponible");
+        }
+
+        // 3. Validar que el doctor trabaja en la sucursal indicada
+        boolean doctorInBranch = doctorBranchRepository
+                .existsByDoctor_IdAndBranch_IdAndIsActiveTrue(request.doctorId(), request.branchId());
+        if (!doctorInBranch) {
+            throw new BadRequestException("El doctor no atiende en la sucursal seleccionada");
+        }
+
+        // 4. Validar que el slot no esté ocupado (anti-overbooking)
+        boolean slotTaken = appointmentRepository.existsByTenantIdAndDoctorIdAndScheduledAtAndStatusIdNot(
+                tenantId, request.doctorId(), request.scheduledAt(), STATUS_CANCELLED);
+        if (slotTaken) {
+            throw new BadRequestException("El horario seleccionado ya no está disponible");
+        }
+
+        Branch branch = new Branch();
+        branch.setId(request.branchId());
 
         Appointment appointment = Appointment.builder()
                 .tenantId(tenantId)
                 .patient(patient)
                 .doctor(doctor)
+                .branch(branch)
                 .scheduledAt(request.scheduledAt())
                 .reason(request.reason())
                 .statusId(STATUS_SCHEDULED)
                 .appointmentTypeId(request.appointmentTypeId())
-                .durationMinutes(30) // Podría venir del tipo de cita o request
+                .durationMinutes(30)
                 .flowStatus("WAITING")
+                .bookingSource(request.bookingSource())
                 .build();
 
         appointment = appointmentRepository.save(appointment);
-        return mapToResponse(appointment);
+
+        return appointmentRepository.findByIdWithDetails(appointment.getId(), tenantId)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> new NotFoundException("Cita no encontrada"));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PageableResponse<AppointmentResponse> findAll(int page, int size, Long doctorId, Long statusId, LocalDate date) {
+    public AppointmentResponse findById(Long id) {
+        Long tenantId = TenantContext.requireTenantId();
+        return appointmentRepository.findByIdWithDetails(id, tenantId)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> new NotFoundException("Cita no encontrada"));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageableResponse<AppointmentResponse> findAll(int page, int size, Long doctorId, Long patientId, Long statusId, LocalDate date, String flowStatus) {
         Long tenantId = TenantContext.requireTenantId();
         Pageable pageable = PageRequest.of(page, size, Sort.by("scheduledAt").descending());
 
@@ -77,56 +128,72 @@ public class AppointmentServiceImpl implements AppointmentService {
         LocalDateTime endDate = date != null ? date.plusDays(1).atStartOfDay() : null;
 
         Page<Appointment> resultPage = appointmentRepository.findByFilters(
-                tenantId, doctorId, statusId, startDate, endDate, pageable);
+                tenantId, doctorId, patientId, statusId, startDate, endDate, flowStatus, pageable);
 
-        Page<AppointmentResponse> responsePage = resultPage.map(this::mapToResponse);
-
-        return PageableResponse.from(responsePage);
+        return PageableResponse.from(resultPage.map(this::mapToResponse));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getCalendar(LocalDate startDate, LocalDate endDate, Long doctorId, Long branchId) {
         Long tenantId = TenantContext.requireTenantId();
-        
-        List<Appointment> appointments = appointmentRepository.findForCalendar(
-                tenantId, 
-                startDate.atStartOfDay(), 
-                endDate.plusDays(1).atStartOfDay(), 
-                doctorId, 
-                branchId);
 
-        return appointments.stream()
+        return appointmentRepository.findForCalendar(
+                        tenantId,
+                        startDate.atStartOfDay(),
+                        endDate.plusDays(1).atStartOfDay(),
+                        doctorId,
+                        branchId)
+                .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<TimeSlotResponse> getAvailableSlots(Long doctorId, LocalDate date) {
+    public List<TimeSlotResponse> getAvailableSlots(Long doctorId, Long branchId, LocalDate date) {
         Long tenantId = TenantContext.requireTenantId();
-        
-        // 1. Obtener citas existentes ese día
-        List<Appointment> existingAppointments = appointmentRepository.findByDoctorAndDate(
-                tenantId, doctorId, date.atStartOfDay(), date.plusDays(1).atStartOfDay(), STATUS_CANCELLED);
-                
-        // 2. Extraer horas ocupadas
-        List<LocalTime> occupiedTimes = existingAppointments.stream()
-                .map(a -> a.getScheduledAt().toLocalTime())
+
+        // dayOfWeek: Java MONDAY=1 → nuestro esquema 0=Lunes..6=Domingo
+        int dayOfWeek = date.getDayOfWeek().getValue() - 1;
+
+        List<DoctorSchedule> schedules;
+        if (branchId != null) {
+            schedules = doctorScheduleRepository.findActiveByDoctorIdAndBranchIdAndDay(doctorId, branchId, dayOfWeek);
+        } else {
+            schedules = doctorScheduleRepository.findByDoctorIdWithFilters(doctorId, dayOfWeek, true);
+        }
+
+        schedules = schedules.stream()
+                .filter(s -> (s.getValidFrom() == null || !date.isBefore(s.getValidFrom())) &&
+                             (s.getValidUntil() == null || !date.isAfter(s.getValidUntil())))
                 .toList();
 
-        // 3. Generar slots (AQUÍ DEBERÍA CRUZARSE CON doctor_schedules)
-        // Por simplicidad en este MVP generamos slots fijos de 08:00 a 18:00 cada 30 min.
-        List<TimeSlotResponse> slots = new ArrayList<>();
-        LocalTime current = LocalTime.of(8, 0);
-        LocalTime end = LocalTime.of(18, 0);
-        
-        while (current.isBefore(end)) {
-            boolean isAvailable = !occupiedTimes.contains(current);
-            slots.add(new TimeSlotResponse(current, current.plusMinutes(30), isAvailable));
-            current = current.plusMinutes(30);
+        if (schedules.isEmpty()) {
+            return List.of();
         }
-        
+
+        List<Appointment> existing = appointmentRepository.findByDoctorAndDate(
+                tenantId, doctorId,
+                date.atStartOfDay(), date.plusDays(1).atStartOfDay(),
+                STATUS_CANCELLED);
+
+        Set<LocalTime> occupiedTimes = existing.stream()
+                .map(a -> a.getScheduledAt().toLocalTime())
+                .collect(Collectors.toSet());
+
+        List<TimeSlotResponse> slots = new ArrayList<>();
+        for (DoctorSchedule schedule : schedules) {
+            int slotMinutes = schedule.getSlotDurationMinutes() != null ? schedule.getSlotDurationMinutes() : 30;
+            LocalTime current = schedule.getStartTime();
+            LocalTime end = schedule.getEndTime();
+
+            while (!current.plusMinutes(slotMinutes).isAfter(end)) {
+                slots.add(new TimeSlotResponse(current, current.plusMinutes(slotMinutes), !occupiedTimes.contains(current)));
+                current = current.plusMinutes(slotMinutes);
+            }
+        }
+
         return slots;
     }
 
@@ -134,10 +201,24 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Transactional
     public void reschedule(Long id, RescheduleAppointmentRequest request) {
         Appointment appointment = getOwnedAppointment(id);
-        
+        Long tenantId = appointment.getTenantId();
+
+        // Validar que el nuevo slot no esté ocupado
+        boolean slotTaken = appointmentRepository.existsByTenantIdAndDoctorIdAndScheduledAtAndStatusIdNot(
+                tenantId, appointment.getDoctor().getId(), request.newScheduledAt(), STATUS_CANCELLED);
+        if (slotTaken) {
+            throw new BadRequestException("El horario seleccionado ya no está disponible");
+        }
+
+        // Registrar historial de reprogramación
+        rescheduleRepository.save(AppointmentReschedule.builder()
+                .appointment(appointment)
+                .oldScheduledAt(appointment.getScheduledAt())
+                .newScheduledAt(request.newScheduledAt())
+                .reason(request.reason())
+                .build());
+
         appointment.setScheduledAt(request.newScheduledAt());
-        appointment.setReason(appointment.getReason() + " | Reschedule reason: " + request.reason());
-        // Aquí normalmente crearíamos una entrada en appointment_reschedules
         appointmentRepository.save(appointment);
     }
 
@@ -145,7 +226,6 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Transactional
     public void updateFlowStatus(Long id, UpdateAppointmentFlowRequest request) {
         Appointment appointment = getOwnedAppointment(id);
-        
         appointment.setFlowStatus(request.flowStatus());
         appointmentRepository.save(appointment);
     }
@@ -154,17 +234,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Transactional
     public void cancel(Long id, CancelAppointmentRequest request) {
         Appointment appointment = getOwnedAppointment(id);
-        
         appointment.setStatusId(STATUS_CANCELLED);
-        appointment.setReason(appointment.getReason() + " | Cancellation reason: " + request.reason());
+        appointment.setReason(request.reason());
         appointmentRepository.save(appointment);
     }
-    
+
     private Appointment getOwnedAppointment(Long id) {
         Long tenantId = TenantContext.requireTenantId();
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Cita no encontrada"));
-        
         if (!appointment.getTenantId().equals(tenantId)) {
             throw new AccessDeniedException("No tienes acceso a esta cita");
         }
@@ -172,14 +250,31 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     private AppointmentResponse mapToResponse(Appointment a) {
+        Patient patient = a.getPatient();
+        Person patientPerson = patient != null ? patient.getPerson() : null;
+
+        Doctor doctor = a.getDoctor();
+        Person doctorPerson = doctor != null ? doctor.getPerson() : null;
+
+        Branch branch = a.getBranch();
+
         return new AppointmentResponse(
                 a.getId(),
-                "Patient ID: " + (a.getPatient() != null ? a.getPatient().getId() : "N/A"),
-                "Doctor ID: " + (a.getDoctor() != null ? a.getDoctor().getId() : "N/A"),
-                "Branch ID: " + (a.getBranch() != null ? a.getBranch().getId() : "N/A"),
+                patient != null ? patient.getId() : null,
+                patientPerson != null ? patientPerson.getFirstName() + " " + patientPerson.getLastName() : null,
+                patientPerson != null ? patientPerson.getPhone() : null,
+                doctor != null ? doctor.getId() : null,
+                doctorPerson != null ? doctorPerson.getFirstName() + " " + doctorPerson.getLastName() : null,
+                branch != null ? branch.getId() : null,
+                branch != null ? branch.getName() : null,
                 a.getScheduledAt(),
                 a.getStatusId(),
-                a.getFlowStatus()
+                a.getAppointmentTypeId(),
+                a.getReason(),
+                a.getDurationMinutes(),
+                a.getFlowStatus(),
+                a.getCreatedAt(),
+                a.getBookingSource() != null ? a.getBookingSource().name() : null
         );
     }
 }

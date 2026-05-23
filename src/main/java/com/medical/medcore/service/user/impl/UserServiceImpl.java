@@ -64,6 +64,12 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("El tipo y número de documento son obligatorios");
         }
 
+        String firstName = request.getPerson().getFirstName();
+        String lastName = request.getPerson().getLastName();
+        if (firstName == null || firstName.isBlank() || lastName == null || lastName.isBlank()) {
+            throw new BadRequestException("El nombre y apellido son obligatorios");
+        }
+
         com.medical.medcore.entity.DocumentType docType = findDocumentTypeOrThrow(request.getPerson().getDocumentTypeCode());
 
         com.medical.medcore.entity.PersonDocument existingDoc = personDocumentRepository
@@ -77,8 +83,8 @@ public class UserServiceImpl implements UserService {
         } else {
             person = new Person();
             person.setTenantId(tenantId);
-            person.setFirstName(request.getPerson().getFirstName());
-            person.setLastName(request.getPerson().getLastName());
+            person.setFirstName(firstName);
+            person.setLastName(lastName);
             person.setBirthDate(request.getPerson().getBirthDate());
             person.setGender(request.getPerson().getGender());
             person.setPhone(request.getPerson().getPhone());
@@ -380,6 +386,12 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("El tipo y número de documento son obligatorios");
         }
 
+        String firstName = request.getPerson().getFirstName();
+        String lastName = request.getPerson().getLastName();
+        if (firstName == null || firstName.isBlank() || lastName == null || lastName.isBlank()) {
+            throw new BadRequestException("El nombre y apellido son obligatorios");
+        }
+
         com.medical.medcore.entity.DocumentType docType = findDocumentTypeOrThrow(request.getPerson().getDocumentTypeCode());
 
         com.medical.medcore.entity.PersonDocument existingDoc = personDocumentRepository
@@ -393,8 +405,8 @@ public class UserServiceImpl implements UserService {
         } else {
             person = new Person();
             person.setTenantId(tenantId);
-            person.setFirstName(request.getPerson().getFirstName());
-            person.setLastName(request.getPerson().getLastName());
+            person.setFirstName(firstName);
+            person.setLastName(lastName);
             person.setBirthDate(request.getPerson().getBirthDate());
             person.setGender(request.getPerson().getGender());
             person.setPhone(request.getPerson().getPhone());

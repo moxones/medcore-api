@@ -9,6 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface AppointmentTypeRepository extends JpaRepository<AppointmentType, Long> {
-    List<AppointmentType> findAllByTenantId(Long tenantId);
-    Optional<AppointmentType> findByIdAndTenantId(Long id, Long tenantId);
+    List<AppointmentType> findByIsActiveTrue();
+    Optional<AppointmentType> findByCode(String code);
+    boolean existsByCode(String code);
 }

@@ -4,6 +4,7 @@ import com.medical.medcore.config.exception.BadRequestException;
 import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.CreatePatientRequest;
 import com.medical.medcore.dto.request.UpdateProfileRequest;
+import com.medical.medcore.dto.response.PatientProfileResponse;
 import com.medical.medcore.dto.response.PatientResponse;
 import com.medical.medcore.entity.*;
 import com.medical.medcore.repository.*;
@@ -31,6 +32,11 @@ public class PatientServiceImpl implements PatientService {
     public PatientResponse create(CreatePatientRequest request) {
 
         Long tenantId = TenantContext.requireTenantId();
+
+        if (request.getFirstName() == null || request.getFirstName().isBlank()
+                || request.getLastName() == null || request.getLastName().isBlank()) {
+            throw new BadRequestException("El nombre y apellido son obligatorios");
+        }
 
         DocumentType docType = documentTypeRepository.findByCode(request.getDocumentTypeCode())
                 .orElseThrow(() -> new BadRequestException("Tipo de documento inválido"));
@@ -107,6 +113,30 @@ public class PatientServiceImpl implements PatientService {
     }
 
     @Override
+    public PatientProfileResponse getProfile() {
+
+        Long tenantId = TenantContext.requireTenantId();
+        Long userId = TenantContext.requireCurrentUserId();
+
+        User user = userRepository.findByIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
+
+        Person person = user.getPerson();
+        boolean hasDocument = personDocumentRepository.existsByPersonId(person.getId());
+
+        return PatientProfileResponse.builder()
+                .id(person.getId())
+                .firstName(person.getFirstName())
+                .lastName(person.getLastName())
+                .phone(person.getPhone())
+                .gender(person.getGender())
+                .birthDate(person.getBirthDate() != null ? person.getBirthDate().toString() : null)
+                .contactEmail(person.getContactEmail())
+                .profileCompleted(person.getProfileCompleted() != null ? person.getProfileCompleted() : false)
+                .build();
+    }
+
+    @Override
     public void updateProfile(UpdateProfileRequest request) {
 
         Long tenantId = TenantContext.requireTenantId();
@@ -116,6 +146,14 @@ public class PatientServiceImpl implements PatientService {
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
 
         Person person = user.getPerson();
+
+        if (request.getFirstName() != null) {
+            person.setFirstName(request.getFirstName());
+        }
+
+        if (request.getLastName() != null) {
+            person.setLastName(request.getLastName());
+        }
 
         if (request.getPhone() != null) {
             person.setPhone(request.getPhone());

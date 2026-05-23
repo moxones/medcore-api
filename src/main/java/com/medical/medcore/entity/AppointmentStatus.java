@@ -30,6 +30,9 @@ public class AppointmentStatus {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

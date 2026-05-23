@@ -10,22 +10,49 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    @Query("SELECT a FROM Appointment a WHERE a.tenantId = :tenantId AND " +
+    @Query(value = "SELECT a FROM Appointment a " +
+           "LEFT JOIN FETCH a.patient p LEFT JOIN FETCH p.person " +
+           "LEFT JOIN FETCH a.doctor d LEFT JOIN FETCH d.person " +
+           "LEFT JOIN FETCH a.branch " +
+           "WHERE a.tenantId = :tenantId AND " +
            "(:doctorId IS NULL OR a.doctor.id = :doctorId) AND " +
+           "(:patientId IS NULL OR a.patient.id = :patientId) AND " +
            "(:statusId IS NULL OR a.statusId = :statusId) AND " +
+           "(:flowStatus IS NULL OR a.flowStatus = :flowStatus) AND " +
+           "(cast(:startDate as timestamp) IS NULL OR a.scheduledAt >= :startDate) AND " +
+           "(cast(:endDate as timestamp) IS NULL OR a.scheduledAt < :endDate)",
+           countQuery = "SELECT count(a) FROM Appointment a WHERE a.tenantId = :tenantId AND " +
+           "(:doctorId IS NULL OR a.doctor.id = :doctorId) AND " +
+           "(:patientId IS NULL OR a.patient.id = :patientId) AND " +
+           "(:statusId IS NULL OR a.statusId = :statusId) AND " +
+           "(:flowStatus IS NULL OR a.flowStatus = :flowStatus) AND " +
            "(cast(:startDate as timestamp) IS NULL OR a.scheduledAt >= :startDate) AND " +
            "(cast(:endDate as timestamp) IS NULL OR a.scheduledAt < :endDate)")
     Page<Appointment> findByFilters(
             @Param("tenantId") Long tenantId,
             @Param("doctorId") Long doctorId,
+            @Param("patientId") Long patientId,
             @Param("statusId") Long statusId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
+            @Param("flowStatus") String flowStatus,
             Pageable pageable);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            LEFT JOIN FETCH a.patient p LEFT JOIN FETCH p.person
+            LEFT JOIN FETCH a.doctor d LEFT JOIN FETCH d.person
+            LEFT JOIN FETCH a.branch
+            WHERE a.id = :id AND a.tenantId = :tenantId
+            """)
+    Optional<Appointment> findByIdWithDetails(
+            @Param("id") Long id,
+            @Param("tenantId") Long tenantId);
 
     @Query("SELECT a FROM Appointment a WHERE a.tenantId = :tenantId AND " +
            "a.scheduledAt >= :startDate AND a.scheduledAt < :endDate AND " +
@@ -62,6 +89,21 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
+    @Query("""
+            SELECT a.doctor.id, COUNT(a)
+            FROM Appointment a
+            WHERE a.tenantId = :tenantId
+            AND a.doctor.id IN :doctorIds
+            AND a.scheduledAt >= :from
+            AND a.scheduledAt < :to
+            GROUP BY a.doctor.id
+            """)
+    List<Object[]> countByDoctorIdInAndPeriod(
+            @Param("tenantId") Long tenantId,
+            @Param("doctorIds") List<Long> doctorIds,
+            @Param("from") java.time.LocalDateTime from,
+            @Param("to") java.time.LocalDateTime to);
+
     @Query("SELECT new com.medical.medcore.dto.response.DoctorProductivityResponse(" +
            "a.doctor.id, 'Doctor ' || a.doctor.id, COUNT(a)) " +
            "FROM Appointment a WHERE a.tenantId = :tenantId AND " +
@@ -71,4 +113,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("tenantId") Long tenantId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    boolean existsByTenantIdAndDoctorIdAndScheduledAtAndStatusIdNot(
+            Long tenantId, Long doctorId, LocalDateTime scheduledAt, Long excludedStatusId);
 }

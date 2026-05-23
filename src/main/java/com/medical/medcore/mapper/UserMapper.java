@@ -36,8 +36,9 @@ public class UserMapper {
         PersonResponse person = personEntity == null
                 ? null
                 : hidePersonData
-                ? new PersonResponse(null, null, null, null, null, null, null)
+                ? new PersonResponse(null, null, null, null, null, null, null, null)
                 : new PersonResponse(
+                        personEntity.getId(),
                         personEntity.getFirstName(),
                         personEntity.getLastName(),
                         personEntity.getBirthDate(),

@@ -13,12 +13,14 @@ import java.util.List;
 
 public interface AppointmentService {
     AppointmentResponse create(CreateAppointmentRequest request);
-    
-    PageableResponse<AppointmentResponse> findAll(int page, int size, Long doctorId, Long statusId, LocalDate date);
+
+    AppointmentResponse findById(Long id);
+
+    PageableResponse<AppointmentResponse> findAll(int page, int size, Long doctorId, Long patientId, Long statusId, LocalDate date, String flowStatus);
     
     List<AppointmentResponse> getCalendar(LocalDate startDate, LocalDate endDate, Long doctorId, Long branchId);
     
-    List<TimeSlotResponse> getAvailableSlots(Long doctorId, LocalDate date);
+    List<TimeSlotResponse> getAvailableSlots(Long doctorId, Long branchId, LocalDate date);
     
     void reschedule(Long id, RescheduleAppointmentRequest request);
     

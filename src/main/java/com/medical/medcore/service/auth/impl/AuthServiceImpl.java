@@ -262,6 +262,7 @@ public class AuthServiceImpl implements AuthService {
                 .firstName(user.getPerson().getFirstName())
                 .lastName(user.getPerson().getLastName())
                 .tenantId(tenantId)
+                .profileCompleted(Boolean.TRUE.equals(user.getPerson().getProfileCompleted()))
                 .build();
     }
 

@@ -2,6 +2,7 @@ package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.request.CreatePatientRequest;
 import com.medical.medcore.dto.request.UpdateProfileRequest;
+import com.medical.medcore.dto.response.PatientProfileResponse;
 import com.medical.medcore.dto.response.PatientResponse;
 import com.medical.medcore.service.patient.PatientService;
 import jakarta.validation.Valid;
@@ -30,6 +31,11 @@ public class PatientController {
     @GetMapping("/{id}")
     public PatientResponse findById(@PathVariable Long id) {
         return patientService.findById(id);
+    }
+
+    @GetMapping("/profile")
+    public PatientProfileResponse getProfile() {
+        return patientService.getProfile();
     }
 
     @PutMapping("/profile")

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 public class PersonResponse {
 
+    private Long id;
     private String firstName;
     private String lastName;
     private LocalDate birthDate;
@@ -12,13 +13,15 @@ public class PersonResponse {
     private String documentTypeCode;
     private String documentNumber;
 
-    public PersonResponse(String firstName,
+    public PersonResponse(Long id,
+                          String firstName,
                           String lastName,
                           LocalDate birthDate,
                           String gender,
                           String phone,
                           String documentTypeCode,
                           String documentNumber) {
+        this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.birthDate = birthDate;
@@ -28,6 +31,7 @@ public class PersonResponse {
         this.documentNumber = documentNumber;
     }
 
+    public Long getId() { return id; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public LocalDate getBirthDate() { return birthDate; }

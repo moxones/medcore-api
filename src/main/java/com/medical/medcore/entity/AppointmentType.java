@@ -10,6 +10,11 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
+/**
+ * Catálogo MAESTRO global de tipos de cita.
+ * Lo gestiona únicamente SUPER_ADMIN. Las clínicas lo activan vía {@link TenantAppointmentType}
+ * (que puede sobre-escribir la duración por defecto).
+ */
 @Entity
 @Table(name = "appointment_types")
 @Getter
@@ -24,14 +29,11 @@ public class AppointmentType {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
+    @Column(nullable = false, length = 50, unique = true)
+    private String code;
 
     @Column(nullable = false, length = 100)
     private String name;
-
-    @Column(nullable = false, length = 50, unique = true)
-    private String code;
 
     @Column(name = "duration_minutes", nullable = false)
     private Integer durationMinutes;
@@ -58,5 +60,6 @@ public class AppointmentType {
     @PrePersist
     protected void onCreate() {
         if (isActive == null) isActive = true;
+        if (durationMinutes == null) durationMinutes = 30;
     }
 }

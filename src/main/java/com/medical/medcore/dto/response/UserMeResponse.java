@@ -19,4 +19,6 @@ public class UserMeResponse {
     private String lastName;
 
     private Long tenantId;
+
+    private Boolean profileCompleted;
 }

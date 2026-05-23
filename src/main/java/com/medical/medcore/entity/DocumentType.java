@@ -30,6 +30,9 @@ public class DocumentType {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "is_active")
+    private Boolean isActive;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -45,4 +48,9 @@ public class DocumentType {
     @LastModifiedBy
     @Column(name = "updated_by")
     private Long updatedBy;
+
+    @PrePersist
+    protected void onCreate() {
+        if (isActive == null) isActive = true;
+    }
 }

@@ -1,5 +1,6 @@
 package com.medical.medcore.entity;
 
+import com.medical.medcore.entity.enums.BookingSource;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -49,6 +50,10 @@ public class Appointment {
 
     @Column(name = "flow_status", nullable = false, length = 50)
     private String flowStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "booking_source", length = 30)
+    private BookingSource bookingSource;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

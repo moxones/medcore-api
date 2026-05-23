@@ -10,6 +10,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
+/**
+ * Catálogo MAESTRO global de especialidades.
+ * Lo gestiona únicamente SUPER_ADMIN. Las clínicas lo activan vía {@link TenantSpecialty}.
+ */
 @Entity
 @Table(name = "specialties")
 @Getter
@@ -24,14 +28,14 @@ public class Specialty {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "tenant_id", nullable = false)
-    private Long tenantId;
+    @Column(nullable = false, length = 50, unique = true)
+    private String code;
 
     @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(nullable = false, length = 50, unique = true)
-    private String code;
+    @Column(length = 255)
+    private String description;
 
     @Column(name = "is_active")
     private Boolean isActive;
@@ -54,7 +58,7 @@ public class Specialty {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = LocalDateTime.now();
         if (isActive == null) isActive = true;
     }
 }

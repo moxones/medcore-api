@@ -34,11 +34,21 @@ public class DoctorService {
     }
 
     public Doctor create(Doctor doctor) {
-        Long tenantId = TenantContext.getTenantId();
-        if (tenantId == null) {
-            throw new BadRequestException("Tenant no disponible");
-        }
+        Long tenantId = TenantContext.requireTenantId();
         doctor.setTenantId(tenantId);
         return doctorRepository.save(doctor);
+    }
+
+    public Doctor update(Long id, Doctor doctor) {
+        Long tenantId = TenantContext.requireTenantId();
+        Doctor existing = doctorRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Médico no encontrado"));
+        if (doctor.getLicenseNumber() != null) {
+            existing.setLicenseNumber(doctor.getLicenseNumber());
+        }
+        if (doctor.getIsActive() != null) {
+            existing.setIsActive(doctor.getIsActive());
+        }
+        return doctorRepository.save(existing);
     }
 }

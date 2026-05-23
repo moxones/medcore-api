@@ -33,16 +33,25 @@ public class AppointmentController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, appointmentService.findById(id), "Cita")
+        );
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<PageableResponse<AppointmentResponse>>> findAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long patientId,
             @RequestParam(required = false) Long statusId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-            
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String flowStatus) {
+
         return ResponseEntity.ok(
-                new ApiResponse<>(true, appointmentService.findAll(page, size, doctorId, statusId, date), "Lista de citas")
+                new ApiResponse<>(true, appointmentService.findAll(page, size, doctorId, patientId, statusId, date, flowStatus), "Lista de citas")
         );
     }
 
@@ -61,10 +70,11 @@ public class AppointmentController {
     @GetMapping("/available-slots")
     public ResponseEntity<ApiResponse<List<TimeSlotResponse>>> getAvailableSlots(
             @RequestParam Long doctorId,
+            @RequestParam Long branchId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-            
+
         return ResponseEntity.ok(
-                new ApiResponse<>(true, appointmentService.getAvailableSlots(doctorId, date), "Slots de tiempo disponibles")
+                new ApiResponse<>(true, appointmentService.getAvailableSlots(doctorId, branchId, date), "Slots de tiempo disponibles")
         );
     }
 

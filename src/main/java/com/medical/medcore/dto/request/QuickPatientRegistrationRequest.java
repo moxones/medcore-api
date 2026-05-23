@@ -15,10 +15,8 @@ import lombok.Setter;
 @Builder
 public class QuickPatientRegistrationRequest {
 
-    @NotBlank(message = "El nombre es obligatorio")
     private String firstName;
 
-    @NotBlank(message = "El apellido es obligatorio")
     private String lastName;
 
     @NotBlank(message = "El código del tipo de documento es obligatorio")
@@ -33,4 +31,6 @@ public class QuickPatientRegistrationRequest {
 
     @NotBlank(message = "La contraseña es obligatoria")
     private String password;
+
+    private String phone;
 }
