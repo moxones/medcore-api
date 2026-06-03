@@ -1,6 +1,8 @@
 package com.medical.medcore.repository;
 
 import com.medical.medcore.entity.Patient;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +13,11 @@ import java.util.Optional;
 public interface PatientRepository extends JpaRepository<Patient, Long> {
 
     List<Patient> findAllByTenantId(Long tenantId);
+
+    Page<Patient> findByTenantId(Long tenantId, Pageable pageable);
+
+    @Query("SELECT p FROM Patient p JOIN FETCH p.person WHERE p.tenantId = :tenantId")
+    Page<Patient> findByTenantIdWithPerson(Long tenantId, Pageable pageable);
 
     Optional<Patient> findByIdAndTenantId(Long id, Long tenantId);
 

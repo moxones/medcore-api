@@ -2,6 +2,7 @@ package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.request.TriageRequest;
 import com.medical.medcore.dto.response.TriageResponse;
+import com.medical.medcore.security.authorization.annotation.RequireStaff;
 import com.medical.medcore.service.triage.TriageService;
 import com.medical.medcore.types.ApiResponse;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/triage")
 @RequiredArgsConstructor
+@RequireStaff
 public class TriageController {
 
     private final TriageService triageService;

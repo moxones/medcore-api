@@ -51,6 +51,22 @@ public class Appointment {
     @Column(name = "flow_status", nullable = false, length = 50)
     private String flowStatus;
 
+    // Timestamps por transición del flujo operativo (base de los timers del board).
+    @Column(name = "checked_in_at")
+    private LocalDateTime checkedInAt;   // pasó a WAITING (check-in)
+
+    @Column(name = "called_at")
+    private LocalDateTime calledAt;      // pasó a CALLED
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;     // pasó a IN_PROCESS
+
+    @Column(name = "finished_at")
+    private LocalDateTime finishedAt;    // pasó a PENDING_PAYMENT (o COMPLETED si se saltó)
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;   // pasó a COMPLETED
+
     @Enumerated(EnumType.STRING)
     @Column(name = "booking_source", length = 30)
     private BookingSource bookingSource;
@@ -71,7 +87,7 @@ public class Appointment {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         if (durationMinutes == null) durationMinutes = 30;
-        if (flowStatus == null) flowStatus = "WAITING";
+        if (flowStatus == null) flowStatus = "SCHEDULED";
     }
 
     @PreUpdate

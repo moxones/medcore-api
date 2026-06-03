@@ -8,6 +8,7 @@ import lombok.*;
 public class PatientProfileResponse {
 
     private Long id;
+    private Long patientId;
     private String firstName;
     private String lastName;
     private String phone;
@@ -15,4 +16,6 @@ public class PatientProfileResponse {
     private String birthDate;
     private String contactEmail;
     private boolean profileCompleted;
+    private boolean hasAccount;
+    private boolean accountActive;
 }

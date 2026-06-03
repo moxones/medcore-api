@@ -24,6 +24,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
            "(:patientId IS NULL OR a.patient.id = :patientId) AND " +
            "(:statusId IS NULL OR a.statusId = :statusId) AND " +
            "(:flowStatus IS NULL OR a.flowStatus = :flowStatus) AND " +
+           "(:applyBranchFilter = false OR a.branch.id IN :branchIds) AND " +
            "(cast(:startDate as timestamp) IS NULL OR a.scheduledAt >= :startDate) AND " +
            "(cast(:endDate as timestamp) IS NULL OR a.scheduledAt < :endDate)",
            countQuery = "SELECT count(a) FROM Appointment a WHERE a.tenantId = :tenantId AND " +
@@ -31,6 +32,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
            "(:patientId IS NULL OR a.patient.id = :patientId) AND " +
            "(:statusId IS NULL OR a.statusId = :statusId) AND " +
            "(:flowStatus IS NULL OR a.flowStatus = :flowStatus) AND " +
+           "(:applyBranchFilter = false OR a.branch.id IN :branchIds) AND " +
            "(cast(:startDate as timestamp) IS NULL OR a.scheduledAt >= :startDate) AND " +
            "(cast(:endDate as timestamp) IS NULL OR a.scheduledAt < :endDate)")
     Page<Appointment> findByFilters(
@@ -41,6 +43,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("flowStatus") String flowStatus,
+            @Param("applyBranchFilter") boolean applyBranchFilter,
+            @Param("branchIds") List<Long> branchIds,
             Pageable pageable);
 
     @Query("""
@@ -57,13 +61,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("SELECT a FROM Appointment a WHERE a.tenantId = :tenantId AND " +
            "a.scheduledAt >= :startDate AND a.scheduledAt < :endDate AND " +
            "(:doctorId IS NULL OR a.doctor.id = :doctorId) AND " +
-           "(:branchId IS NULL OR a.branch.id = :branchId)")
+           "(:applyBranchFilter = false OR a.branch.id IN :branchIds)")
     List<Appointment> findForCalendar(
             @Param("tenantId") Long tenantId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             @Param("doctorId") Long doctorId,
-            @Param("branchId") Long branchId);
+            @Param("applyBranchFilter") boolean applyBranchFilter,
+            @Param("branchIds") List<Long> branchIds);
             
     @Query("SELECT a FROM Appointment a WHERE a.tenantId = :tenantId AND " +
            "a.doctor.id = :doctorId AND a.scheduledAt >= :startDate AND a.scheduledAt < :endDate " +
@@ -116,4 +121,33 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     boolean existsByTenantIdAndDoctorIdAndScheduledAtAndStatusIdNot(
             Long tenantId, Long doctorId, LocalDateTime scheduledAt, Long excludedStatusId);
+
+    @Query("SELECT a FROM Appointment a WHERE a.tenantId = :tenantId AND " +
+           "a.doctor.id IN :doctorIds AND a.scheduledAt >= :startDate AND a.scheduledAt < :endDate " +
+           "AND a.statusId != :cancelledStatusId")
+    List<Appointment> findByDoctorsAndDateRange(
+            @Param("tenantId") Long tenantId,
+            @Param("doctorIds") List<Long> doctorIds,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("cancelledStatusId") Long cancelledStatusId);
+
+    @Query("SELECT a FROM Appointment a " +
+           "LEFT JOIN FETCH a.patient p LEFT JOIN FETCH p.person " +
+           "LEFT JOIN FETCH a.doctor d LEFT JOIN FETCH d.person " +
+           "LEFT JOIN FETCH a.branch " +
+           "WHERE a.tenantId = :tenantId AND " +
+           "a.scheduledAt >= :startDate AND a.scheduledAt < :endDate AND " +
+           "(:applyBranchFilter = false OR a.branch.id IN :branchIds) AND " +
+           "(:doctorId IS NULL OR a.doctor.id = :doctorId) AND " +
+           "a.statusId != :cancelledStatusId " +
+           "ORDER BY a.scheduledAt ASC")
+    List<Appointment> findQueue(
+            @Param("tenantId") Long tenantId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("applyBranchFilter") boolean applyBranchFilter,
+            @Param("branchIds") List<Long> branchIds,
+            @Param("doctorId") Long doctorId,
+            @Param("cancelledStatusId") Long cancelledStatusId);
 }

@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequireAdminOrSuperAdmin
 public class DoctorBranchController {
 
     private final DoctorBranchService doctorBranchService;
@@ -26,6 +25,7 @@ public class DoctorBranchController {
                 doctorBranchService.listBranchesForDoctor(doctorId), "Sucursales del doctor"));
     }
 
+    @RequireAdminOrSuperAdmin
     @PostMapping("/doctors/{doctorId}/branches/{branchId}")
     public ResponseEntity<ApiResponse<DoctorBranchResponse>> assign(
             @PathVariable Long doctorId, @PathVariable Long branchId) {
@@ -33,6 +33,7 @@ public class DoctorBranchController {
                 doctorBranchService.assign(doctorId, branchId), "Doctor asignado a la sucursal"));
     }
 
+    @RequireAdminOrSuperAdmin
     @PostMapping("/doctors/{doctorId}/branches/bulk")
     public ResponseEntity<ApiResponse<List<DoctorBranchResponse>>> bulkAssign(
             @PathVariable Long doctorId, @Valid @RequestBody BulkBranchesRequest request) {
@@ -40,6 +41,7 @@ public class DoctorBranchController {
                 doctorBranchService.bulkAssign(doctorId, request.branchIds()), "Doctor asignado a las sucursales"));
     }
 
+    @RequireAdminOrSuperAdmin
     @DeleteMapping("/doctors/{doctorId}/branches/{branchId}")
     public ResponseEntity<ApiResponse<Void>> deactivate(
             @PathVariable Long doctorId, @PathVariable Long branchId) {

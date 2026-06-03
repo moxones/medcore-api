@@ -5,7 +5,11 @@ import com.medical.medcore.dto.request.CreateAppointmentRequest;
 import com.medical.medcore.dto.request.RescheduleAppointmentRequest;
 import com.medical.medcore.dto.request.UpdateAppointmentFlowRequest;
 import com.medical.medcore.dto.response.AppointmentResponse;
+import com.medical.medcore.dto.response.DayAvailabilityResponse;
+import com.medical.medcore.dto.response.SpecialtySummaryResponse;
 import com.medical.medcore.dto.response.TimeSlotResponse;
+import com.medical.medcore.security.authorization.annotation.RequireBooker;
+import com.medical.medcore.security.authorization.annotation.RequireStaff;
 import com.medical.medcore.service.appointment.AppointmentService;
 import com.medical.medcore.types.ApiResponse;
 import com.medical.medcore.types.PageableResponse;
@@ -25,6 +29,7 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
+    @RequireBooker
     @PostMapping
     public ResponseEntity<ApiResponse<AppointmentResponse>> create(
             @Valid @RequestBody CreateAppointmentRequest request) {
@@ -33,6 +38,7 @@ public class AppointmentController {
         );
     }
 
+    @RequireBooker
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<AppointmentResponse>> findById(@PathVariable Long id) {
         return ResponseEntity.ok(
@@ -40,6 +46,7 @@ public class AppointmentController {
         );
     }
 
+    @RequireStaff
     @GetMapping
     public ResponseEntity<ApiResponse<PageableResponse<AppointmentResponse>>> findAll(
             @RequestParam(defaultValue = "0") int page,
@@ -55,6 +62,7 @@ public class AppointmentController {
         );
     }
 
+    @RequireStaff
     @GetMapping("/calendar")
     public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getCalendar(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
@@ -64,6 +72,18 @@ public class AppointmentController {
             
         return ResponseEntity.ok(
                 new ApiResponse<>(true, appointmentService.getCalendar(startDate, endDate, doctorId, branchId), "Citas de calendario obtenidas")
+        );
+    }
+
+    @RequireStaff
+    @GetMapping("/queue")
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getQueue(
+            @RequestParam(required = false) Long branchId,
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, appointmentService.getQueue(branchId, doctorId, date), "Sala de espera")
         );
     }
 
@@ -78,6 +98,32 @@ public class AppointmentController {
         );
     }
 
+    @GetMapping("/availability")
+    public ResponseEntity<ApiResponse<List<DayAvailabilityResponse>>> getAvailability(
+            @RequestParam Long branchId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) Long specialtyId,
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long appointmentTypeId) {
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true,
+                        appointmentService.getAvailability(branchId, fromDate, toDate, specialtyId, doctorId, appointmentTypeId),
+                        "OK")
+        );
+    }
+
+    @GetMapping("/specialties-summary")
+    public ResponseEntity<ApiResponse<List<SpecialtySummaryResponse>>> getSpecialtiesSummary(
+            @RequestParam Long branchId) {
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, appointmentService.getSpecialtiesSummary(branchId), "OK")
+        );
+    }
+
+    @RequireBooker
     @PutMapping("/{id}/reschedule")
     public ResponseEntity<ApiResponse<Void>> reschedule(
             @PathVariable Long id,
@@ -89,17 +135,18 @@ public class AppointmentController {
         );
     }
 
+    @RequireStaff
     @PatchMapping("/{id}/flow-status")
-    public ResponseEntity<ApiResponse<Void>> updateFlowStatus(
+    public ResponseEntity<ApiResponse<AppointmentResponse>> updateFlowStatus(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAppointmentFlowRequest request) {
-            
-        appointmentService.updateFlowStatus(id, request);
+
         return ResponseEntity.ok(
-                new ApiResponse<>(true, null, "Estado de flujo actualizado")
+                new ApiResponse<>(true, appointmentService.updateFlowStatus(id, request), "Estado de flujo actualizado")
         );
     }
 
+    @RequireBooker
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<Void>> cancel(
             @PathVariable Long id,

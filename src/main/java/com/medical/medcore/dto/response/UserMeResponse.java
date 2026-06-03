@@ -2,6 +2,7 @@ package com.medical.medcore.dto.response;
 
 import lombok.*;
 
+import java.util.List;
 import java.util.Set;
 
 @Getter
@@ -21,4 +22,7 @@ public class UserMeResponse {
     private Long tenantId;
 
     private Boolean profileCompleted;
+
+    /** Sucursales asignadas (personal operativo). Vacío para admin/super-admin y pacientes. */
+    private List<Long> branchIds;
 }

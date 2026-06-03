@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.security.access.AccessDeniedException;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class TenantContext {
@@ -12,9 +14,14 @@ public class TenantContext {
     private static final ThreadLocal<ContextData> CURRENT = new ThreadLocal<>();
 
     public static void set(Long tenantId, Long userId) {
+        set(tenantId, userId, null);
+    }
+
+    public static void set(Long tenantId, Long userId, List<Long> branchIds) {
         ContextData data = new ContextData();
         data.setTenantId(tenantId);
         data.setUserId(userId);
+        data.setBranchIds(branchIds);
         CURRENT.set(data);
     }
 
@@ -24,6 +31,11 @@ public class TenantContext {
 
     public static Long getCurrentUserId() {
         return CURRENT.get() != null ? CURRENT.get().getUserId() : null;
+    }
+
+    /** Sucursales asignadas al usuario autenticado (personal operativo). null = no resuelto. */
+    public static List<Long> getBranchIds() {
+        return CURRENT.get() != null ? CURRENT.get().getBranchIds() : null;
     }
 
     public static Long requireTenantId() {
@@ -51,5 +63,6 @@ public class TenantContext {
     private static class ContextData {
         private Long tenantId;
         private Long userId;
+        private List<Long> branchIds;
     }
 }

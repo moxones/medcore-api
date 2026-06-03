@@ -18,6 +18,8 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
 
     Optional<Doctor> findByIdAndTenantId(Long id, Long tenantId);
 
+    Optional<Doctor> findByPersonIdAndTenantId(Long personId, Long tenantId);
+
     @Query(value = """
             SELECT DISTINCT d FROM Doctor d
             JOIN FETCH d.person

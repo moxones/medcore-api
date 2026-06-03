@@ -50,8 +50,9 @@ public class JwtFilter extends OncePerRequestFilter {
                 Long tenantId = ((Number) claims.get("tenantId")).longValue();
 
                 List<String> roles = extractRoles(claims.get("roles"));
+                List<Long> branchIds = extractBranchIds(claims.get("branchIds"));
 
-                TenantContext.set(tenantId, userId);
+                TenantContext.set(tenantId, userId, branchIds);
                 MDC.put("tenantId", String.valueOf(tenantId));
                 MDC.put("userId", String.valueOf(userId));
 
@@ -81,6 +82,17 @@ public class JwtFilter extends OncePerRequestFilter {
         return rawRoles.stream()
                 .filter(role -> role != null && !role.toString().isBlank())
                 .map(Object::toString)
+                .toList();
+    }
+
+    private List<Long> extractBranchIds(Object branchIdsClaim) {
+        if (!(branchIdsClaim instanceof Collection<?> rawIds)) {
+            return Collections.emptyList();
+        }
+
+        return rawIds.stream()
+                .filter(id -> id instanceof Number)
+                .map(id -> ((Number) id).longValue())
                 .toList();
     }
 }

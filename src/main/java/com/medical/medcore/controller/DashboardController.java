@@ -2,6 +2,7 @@ package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.response.DashboardSummaryResponse;
 import com.medical.medcore.dto.response.DoctorProductivityResponse;
+import com.medical.medcore.security.authorization.annotation.RequireStaff;
 import com.medical.medcore.service.dashboard.DashboardService;
 import com.medical.medcore.types.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/dashboard")
 @RequiredArgsConstructor
+@RequireStaff
 public class DashboardController {
 
     private final DashboardService dashboardService;

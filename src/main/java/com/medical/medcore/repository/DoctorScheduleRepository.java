@@ -80,6 +80,20 @@ public interface DoctorScheduleRepository extends JpaRepository<DoctorSchedule, 
     @Query("SELECT ds FROM DoctorSchedule ds LEFT JOIN FETCH ds.branch LEFT JOIN FETCH ds.doctorBranch db LEFT JOIN FETCH db.branch WHERE ds.doctor.id IN :doctorIds AND ds.isActive = true")
     List<DoctorSchedule> findActiveByDoctorIdIn(@Param("doctorIds") List<Long> doctorIds);
 
+    // --- Batch load for availability endpoint: all active schedules for doctors list in a branch ---
+    @Query("""
+            SELECT ds FROM DoctorSchedule ds
+            LEFT JOIN FETCH ds.doctorBranch db LEFT JOIN FETCH db.branch
+            LEFT JOIN FETCH ds.branch
+            WHERE ds.doctor.id IN :doctorIds
+            AND ds.isActive = true
+            AND (db.branch.id = :branchId OR ds.branch.id = :branchId)
+            ORDER BY ds.dayOfWeek, ds.startTime
+            """)
+    List<DoctorSchedule> findActiveByDoctorIdInAndBranchId(
+            @Param("doctorIds") List<Long> doctorIds,
+            @Param("branchId") Long branchId);
+
     // --- Legacy: kept for findActiveByDoctorIdAndBranchId used by DoctorScheduleService ---
 
     @Query("""

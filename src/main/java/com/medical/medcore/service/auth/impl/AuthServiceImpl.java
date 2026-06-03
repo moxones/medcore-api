@@ -32,6 +32,7 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final PersonDocumentRepository personDocumentRepository;
     private final DocumentTypeRepository documentTypeRepository;
+    private final StaffBranchRepository staffBranchRepository;
 
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
@@ -42,7 +43,8 @@ public class AuthServiceImpl implements AuthService {
                            PatientRepository patientRepository,
                            RoleRepository roleRepository,
                            PersonDocumentRepository personDocumentRepository,
-                           DocumentTypeRepository documentTypeRepository) {
+                           DocumentTypeRepository documentTypeRepository,
+                           StaffBranchRepository staffBranchRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tenantRepository = tenantRepository;
@@ -53,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
         this.roleRepository = roleRepository;
         this.personDocumentRepository = personDocumentRepository;
         this.documentTypeRepository = documentTypeRepository;
+        this.staffBranchRepository = staffBranchRepository;
     }
 
     @Override
@@ -139,11 +142,13 @@ public class AuthServiceImpl implements AuthService {
         user = userRepository.save(user);
 
         List<String> roles = extractRoles(user);
+        List<Long> branchIds = staffBranchRepository.findActiveBranchIdsByUserId(user.getId());
 
         String accessToken = jwtProvider.generateToken(
                 user.getId(),
                 tenant.getId(),
-                roles
+                roles,
+                branchIds
         );
 
         String refreshToken = refreshTokenService.create(
@@ -176,11 +181,13 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<String> roles = extractRoles(user);
+        List<Long> branchIds = staffBranchRepository.findActiveBranchIdsByUserId(user.getId());
 
         String accessToken = jwtProvider.generateToken(
                 user.getId(),
                 tenant.getId(),
-                roles
+                roles,
+                branchIds
         );
 
         String refreshToken = refreshTokenService.create(
@@ -214,11 +221,13 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<String> roles = extractRoles(user);
+        List<Long> branchIds = staffBranchRepository.findActiveBranchIdsByUserId(user.getId());
 
         String newAccess = jwtProvider.generateToken(
                 user.getId(),
                 tenant.getId(),
-                roles
+                roles,
+                branchIds
         );
 
         refreshTokenService.revoke(token);
@@ -263,6 +272,7 @@ public class AuthServiceImpl implements AuthService {
                 .lastName(user.getPerson().getLastName())
                 .tenantId(tenantId)
                 .profileCompleted(Boolean.TRUE.equals(user.getPerson().getProfileCompleted()))
+                .branchIds(staffBranchRepository.findActiveBranchIdsByUserId(user.getId()))
                 .build();
     }
 

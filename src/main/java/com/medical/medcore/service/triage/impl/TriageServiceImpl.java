@@ -54,8 +54,9 @@ public class TriageServiceImpl implements TriageService {
 
         triage = triageRepository.save(triage);
 
-        appointment.setFlowStatus("TRIAGE_COMPLETED");
-        appointmentRepository.save(appointment);
+        // El flow_status operativo lo gobierna PATCH /appointments/{id}/flow-status
+        // con su máquina de estados (SCHEDULED→WAITING→CALLED→IN_PROCESS→...).
+        // El triage NO debe sobrescribirlo con un valor fuera del enum.
 
         return mapToResponse(triage);
     }

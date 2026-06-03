@@ -1,6 +1,7 @@
 package com.medical.medcore.controller;
 
 import com.medical.medcore.entity.Branch;
+import com.medical.medcore.security.authorization.annotation.RequireAdminOrSuperAdmin;
 import com.medical.medcore.service.branch.BranchService;
 import com.medical.medcore.types.ApiResponse;
 import com.medical.medcore.types.PageableResponse;
@@ -27,6 +28,7 @@ public class BranchController {
         return ResponseEntity.ok(new ApiResponse<>(true, branchService.findById(id), "Sucursal"));
     }
 
+    @RequireAdminOrSuperAdmin
     @PostMapping
     public ResponseEntity<ApiResponse<Branch>> create(@RequestBody Branch branch) {
         return ResponseEntity.ok(new ApiResponse<>(true, branchService.create(branch), "Sucursal creada"));

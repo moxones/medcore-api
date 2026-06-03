@@ -1,30 +1,69 @@
 package com.medical.medcore.controller;
 
-import com.medical.medcore.config.exception.NotFoundException;
-import com.medical.medcore.entity.MedicalRecord;
-import com.medical.medcore.repository.MedicalRecordRepository;
+import com.medical.medcore.dto.request.CreateMedicalEntryRequest;
+import com.medical.medcore.dto.request.UpdatePatientClinicalRequest;
+import com.medical.medcore.dto.response.MedicalEntryResponse;
+import com.medical.medcore.dto.response.MedicalRecordResponse;
+import com.medical.medcore.security.authorization.annotation.RequireDoctorOrAdmin;
+import com.medical.medcore.security.authorization.annotation.RequireStaff;
+import com.medical.medcore.service.medicalrecord.MedicalRecordService;
 import com.medical.medcore.types.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/medical-records")
 @RequiredArgsConstructor
 public class MedicalRecordController {
 
-    // CRUD super simplificado directamente con repository por solicitud de rapidez
-    private final MedicalRecordRepository recordRepository;
+    private final MedicalRecordService medicalRecordService;
 
+    @RequireStaff
     @GetMapping("/patient/{patientId}")
-    public ResponseEntity<ApiResponse<MedicalRecord>> findByPatient(@PathVariable Long patientId) {
-        MedicalRecord record = recordRepository.findByPatientId(patientId)
-                .orElseThrow(() -> new NotFoundException("Historial clínico no encontrado"));
-        return ResponseEntity.ok(new ApiResponse<>(true, record, "Historial clínico"));
+    public ResponseEntity<ApiResponse<MedicalRecordResponse>> findByPatient(@PathVariable Long patientId) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.getByPatientId(patientId), "Historia clínica"));
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<MedicalRecord>> create(@RequestBody MedicalRecord record) {
-        return ResponseEntity.ok(new ApiResponse<>(true, recordRepository.save(record), "Historial clínico creado"));
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<MedicalRecordResponse>> myRecord() {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.getMyRecord(), "Mi historia clínica"));
+    }
+
+    @RequireDoctorOrAdmin
+    @PostMapping("/entries")
+    public ResponseEntity<ApiResponse<MedicalEntryResponse>> addEntry(
+            @Valid @RequestBody CreateMedicalEntryRequest request) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.addEntry(request), "Atención registrada en la historia clínica"));
+    }
+
+    @RequireStaff
+    @GetMapping("/entries/{entryId}")
+    public ResponseEntity<ApiResponse<MedicalEntryResponse>> getEntry(@PathVariable Long entryId) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.getEntry(entryId), "Entrada de historia clínica"));
+    }
+
+    @RequireStaff
+    @GetMapping("/appointment/{appointmentId}/entries")
+    public ResponseEntity<ApiResponse<List<MedicalEntryResponse>>> getByAppointment(
+            @PathVariable Long appointmentId) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.getEntriesByAppointment(appointmentId), "Atenciones de la cita"));
+    }
+
+    @RequireDoctorOrAdmin
+    @PutMapping("/patient/{patientId}/clinical")
+    public ResponseEntity<ApiResponse<MedicalRecordResponse>> updateClinical(
+            @PathVariable Long patientId,
+            @RequestBody UpdatePatientClinicalRequest request) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.updatePatientClinical(patientId, request), "Base clínica actualizada"));
     }
 }

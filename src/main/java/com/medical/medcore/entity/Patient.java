@@ -22,4 +22,17 @@ public class Patient {
     @ManyToOne(optional = false)
     @JoinColumn(name = "person_id")
     private Person person;
+
+    // ---- Base clínica / antecedentes del paciente ----
+    @Column(name = "blood_type", length = 5)
+    private String bloodType;
+
+    @Column(name = "allergies", columnDefinition = "TEXT")
+    private String allergies;
+
+    @Column(name = "chronic_conditions", columnDefinition = "TEXT")
+    private String chronicConditions;
+
+    @Column(name = "clinical_notes", columnDefinition = "TEXT")
+    private String clinicalNotes;
 }

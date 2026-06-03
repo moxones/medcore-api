@@ -4,7 +4,8 @@ import com.medical.medcore.dto.response.CatalogItemResponse;
 import com.medical.medcore.entity.AppointmentStatus;
 import com.medical.medcore.entity.Plan;
 import com.medical.medcore.entity.SubscriptionStatus;
-import com.medical.medcore.security.authorization.annotation.RequireAdminOrSuperAdmin;
+
+import com.medical.medcore.security.authorization.annotation.RequireAdmin;
 import com.medical.medcore.service.catalog.CatalogService;
 import com.medical.medcore.types.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/catalogs")
 @RequiredArgsConstructor
-@RequireAdminOrSuperAdmin
+
 public class CatalogController {
 
     private final CatalogService catalogService;
@@ -42,11 +43,13 @@ public class CatalogController {
         return ResponseEntity.ok(new ApiResponse<>(true, catalogService.listAvailableSpecialties(), "Especialidades disponibles"));
     }
 
+    @RequireAdmin
     @PostMapping("/specialties/{specialtyId}")
     public ResponseEntity<ApiResponse<CatalogItemResponse>> activateSpecialty(@PathVariable Long specialtyId) {
         return ResponseEntity.ok(new ApiResponse<>(true, catalogService.activateSpecialty(specialtyId), "Especialidad activada"));
     }
 
+    @RequireAdmin
     @DeleteMapping("/specialties/{specialtyId}")
     public ResponseEntity<ApiResponse<Void>> deactivateSpecialty(@PathVariable Long specialtyId) {
         catalogService.deactivateSpecialty(specialtyId);
@@ -64,6 +67,7 @@ public class CatalogController {
         return ResponseEntity.ok(new ApiResponse<>(true, catalogService.listAvailableAppointmentTypes(), "Tipos de cita disponibles"));
     }
 
+    @RequireAdmin
     @PostMapping("/appointment-types/{appointmentTypeId}")
     public ResponseEntity<ApiResponse<CatalogItemResponse>> activateAppointmentType(
             @PathVariable Long appointmentTypeId,
@@ -72,6 +76,7 @@ public class CatalogController {
                 catalogService.activateAppointmentType(appointmentTypeId, durationMinutes), "Tipo de cita activado"));
     }
 
+    @RequireAdmin
     @DeleteMapping("/appointment-types/{appointmentTypeId}")
     public ResponseEntity<ApiResponse<Void>> deactivateAppointmentType(@PathVariable Long appointmentTypeId) {
         catalogService.deactivateAppointmentType(appointmentTypeId);
@@ -89,11 +94,13 @@ public class CatalogController {
         return ResponseEntity.ok(new ApiResponse<>(true, catalogService.listAvailableDocumentTypes(), "Tipos de documento disponibles"));
     }
 
+    @RequireAdmin
     @PostMapping("/document-types/{documentTypeId}")
     public ResponseEntity<ApiResponse<CatalogItemResponse>> activateDocumentType(@PathVariable Long documentTypeId) {
         return ResponseEntity.ok(new ApiResponse<>(true, catalogService.activateDocumentType(documentTypeId), "Tipo de documento activado"));
     }
 
+    @RequireAdmin
     @DeleteMapping("/document-types/{documentTypeId}")
     public ResponseEntity<ApiResponse<Void>> deactivateDocumentType(@PathVariable Long documentTypeId) {
         catalogService.deactivateDocumentType(documentTypeId);

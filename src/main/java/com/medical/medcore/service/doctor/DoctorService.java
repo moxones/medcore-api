@@ -3,7 +3,9 @@ package com.medical.medcore.service.doctor;
 import com.medical.medcore.config.exception.BadRequestException;
 import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.entity.Doctor;
+import com.medical.medcore.entity.User;
 import com.medical.medcore.repository.DoctorRepository;
+import com.medical.medcore.repository.UserRepository;
 import com.medical.medcore.types.PageableResponse;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,17 @@ import org.springframework.stereotype.Service;
 public class DoctorService {
 
     private final DoctorRepository doctorRepository;
+    private final UserRepository userRepository;
+
+    /** Resuelve el doctor asociado al usuario autenticado. */
+    public Doctor findMe() {
+        Long tenantId = TenantContext.requireTenantId();
+        Long userId = TenantContext.requireCurrentUserId();
+        User user = userRepository.findByIdAndTenantId(userId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
+        return doctorRepository.findByPersonIdAndTenantId(user.getPerson().getId(), tenantId)
+                .orElseThrow(() -> new NotFoundException("No existe un médico asociado a este usuario"));
+    }
 
     public PageableResponse<Doctor> findAll(int page, int size) {
         Long tenantId = TenantContext.getTenantId();

@@ -8,9 +8,12 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+    List<Payment> findByAppointmentIdOrderByIdDesc(Long appointmentId);
 
     @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.appointment.tenantId = :tenantId AND " +
            "p.status = 'COMPLETED' AND p.paymentDate >= :startDate AND p.paymentDate < :endDate")

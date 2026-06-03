@@ -28,6 +28,15 @@ public class Payment {
     @Column(nullable = false, length = 50)
     private String status;
 
+    @Column(name = "payment_method", length = 30)
+    private String paymentMethod;
+
+    @Column(length = 200)
+    private String concept;
+
+    @Column(name = "created_by")
+    private Long createdBy;
+
     @Column(name = "payment_date")
     private LocalDateTime paymentDate;
 

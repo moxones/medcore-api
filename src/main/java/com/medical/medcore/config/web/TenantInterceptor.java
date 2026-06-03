@@ -44,12 +44,13 @@ public class TenantInterceptor implements HandlerInterceptor {
 
         Long currentUserId = TenantContext.getCurrentUserId();
         Long jwtTenantId = TenantContext.getTenantId();
+        java.util.List<Long> branchIds = TenantContext.getBranchIds();
 
         if (jwtTenantId != null && !jwtTenantId.equals(tenant.getId())) {
             throw new TenantNotFoundException("Token tenant mismatch con dominio");
         }
 
-        TenantContext.set(tenant.getId(), currentUserId);
+        TenantContext.set(tenant.getId(), currentUserId, branchIds);
         MDC.put("tenantId", String.valueOf(tenant.getId()));
         if (currentUserId != null) {
             MDC.put("userId", String.valueOf(currentUserId));
@@ -58,9 +59,13 @@ public class TenantInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    private static final java.util.regex.Pattern IP_PATTERN =
+            java.util.regex.Pattern.compile("^\\d{1,3}(\\.\\d{1,3}){3}$");
+
     private String extractSubdomain(HttpServletRequest request, String host) {
 
-        if (host.equals("localhost") || host.startsWith("127.") || host.startsWith("192.")) {
+        if (host.equals("localhost") || host.startsWith("127.") || host.startsWith("192.")
+                || IP_PATTERN.matcher(host).matches()) {
             String fallbackHeader = request.getHeader("X-Tenant-ID");
             if (fallbackHeader != null && !fallbackHeader.isBlank()) {
                 return fallbackHeader;
