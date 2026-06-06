@@ -13,6 +13,8 @@ public interface PersonDocumentRepository extends JpaRepository<PersonDocument, 
 
     boolean existsByPersonId(Long personId);
 
+    Optional<PersonDocument> findFirstByPersonId(Long personId);
+
     @Query("SELECT CASE WHEN COUNT(pd) > 0 THEN true ELSE false END FROM PersonDocument pd JOIN pd.person p WHERE pd.documentType.id = :documentTypeId AND pd.documentNumber = :documentNumber AND p.tenantId = :tenantId")
     boolean existsByDocumentTypeIdAndDocumentNumberAndTenantId(Long documentTypeId, String documentNumber, Long tenantId);
 }

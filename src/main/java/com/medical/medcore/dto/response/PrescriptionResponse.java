@@ -6,5 +6,9 @@ public record PrescriptionResponse(
         String dosage,
         String frequency,
         String duration,
+        String route,
+        String quantity,
+        String presentation,
+        Boolean isActive,
         String instructions
 ) {}

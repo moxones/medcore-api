@@ -7,5 +7,8 @@ public record PrescriptionRequest(
         String dosage,
         String frequency,
         String duration,
+        String route,
+        String quantity,
+        String presentation,
         String instructions
 ) {}

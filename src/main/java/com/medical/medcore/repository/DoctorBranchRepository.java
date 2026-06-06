@@ -16,6 +16,9 @@ public interface DoctorBranchRepository extends JpaRepository<DoctorBranch, Long
     @Query("SELECT db FROM DoctorBranch db JOIN FETCH db.branch WHERE db.doctor.id = :doctorId AND db.isActive = true")
     List<DoctorBranch> findActiveBranchesByDoctorId(Long doctorId);
 
+    @Query("SELECT db.branch.id FROM DoctorBranch db WHERE db.doctor.person.id = :personId AND db.isActive = true")
+    List<Long> findActiveBranchIdsByPersonId(@Param("personId") Long personId);
+
     @Query("SELECT db FROM DoctorBranch db JOIN FETCH db.branch WHERE db.doctor.id IN :doctorIds AND db.isActive = true")
     List<DoctorBranch> findActiveBranchesByDoctorIdIn(@Param("doctorIds") List<Long> doctorIds);
 

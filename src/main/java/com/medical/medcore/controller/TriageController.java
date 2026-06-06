@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/triage")
 @RequiredArgsConstructor
@@ -19,18 +21,33 @@ public class TriageController {
     private final TriageService triageService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<TriageResponse>> createOrUpdate(
+    public ResponseEntity<ApiResponse<TriageResponse>> create(
             @Valid @RequestBody TriageRequest request) {
         return ResponseEntity.ok(
-                new ApiResponse<>(true, triageService.createOrUpdate(request), "Triage guardado exitosamente")
+                new ApiResponse<>(true, triageService.create(request), "Toma de triaje registrada")
         );
     }
 
     @GetMapping("/appointment/{appointmentId}")
-    public ResponseEntity<ApiResponse<TriageResponse>> findByAppointment(
+    public ResponseEntity<ApiResponse<List<TriageResponse>>> listByAppointment(
             @PathVariable Long appointmentId) {
         return ResponseEntity.ok(
-                new ApiResponse<>(true, triageService.findByAppointment(appointmentId), "Triage obtenido")
+                new ApiResponse<>(true, triageService.listByAppointment(appointmentId), "Tomas de triaje de la cita")
+        );
+    }
+
+    @GetMapping("/appointment/{appointmentId}/latest")
+    public ResponseEntity<ApiResponse<TriageResponse>> latestByAppointment(
+            @PathVariable Long appointmentId) {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, triageService.latestByAppointment(appointmentId), "Última toma de triaje")
+        );
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<TriageResponse>> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, triageService.findById(id), "Toma de triaje")
         );
     }
 }

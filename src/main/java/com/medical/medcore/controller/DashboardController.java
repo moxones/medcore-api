@@ -1,6 +1,7 @@
 package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.response.DashboardSummaryResponse;
+import com.medical.medcore.dto.response.DoctorDashboardSummaryResponse;
 import com.medical.medcore.dto.response.DoctorProductivityResponse;
 import com.medical.medcore.security.authorization.annotation.RequireStaff;
 import com.medical.medcore.service.dashboard.DashboardService;
@@ -32,6 +33,13 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<List<DoctorProductivityResponse>>> getDoctorProductivity() {
         return ResponseEntity.ok(
                 new ApiResponse<>(true, dashboardService.getDoctorProductivity(), "Productividad mensual por médico")
+        );
+    }
+
+    @GetMapping("/doctor-summary")
+    public ResponseEntity<ApiResponse<DoctorDashboardSummaryResponse>> getDoctorSummary() {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, dashboardService.getDoctorSummary(), "Resumen del dashboard del médico")
         );
     }
 }

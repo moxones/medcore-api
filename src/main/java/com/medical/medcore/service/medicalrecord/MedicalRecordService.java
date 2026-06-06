@@ -1,6 +1,7 @@
 package com.medical.medcore.service.medicalrecord;
 
 import com.medical.medcore.dto.request.CreateMedicalEntryRequest;
+import com.medical.medcore.dto.request.OrderResultRequest;
 import com.medical.medcore.dto.request.UpdatePatientClinicalRequest;
 import com.medical.medcore.dto.response.MedicalEntryResponse;
 import com.medical.medcore.dto.response.MedicalRecordResponse;
@@ -18,6 +19,10 @@ public interface MedicalRecordService {
     MedicalEntryResponse getEntry(Long entryId);
 
     List<MedicalEntryResponse> getEntriesByAppointment(Long appointmentId);
+
+    MedicalEntryResponse signEntry(Long entryId);
+
+    MedicalEntryResponse.OrderItem addOrderResult(Long orderId, OrderResultRequest request);
 
     MedicalRecordResponse updatePatientClinical(Long patientId, UpdatePatientClinicalRequest request);
 }

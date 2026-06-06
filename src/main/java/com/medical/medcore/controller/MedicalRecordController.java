@@ -1,6 +1,7 @@
 package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.request.CreateMedicalEntryRequest;
+import com.medical.medcore.dto.request.OrderResultRequest;
 import com.medical.medcore.dto.request.UpdatePatientClinicalRequest;
 import com.medical.medcore.dto.response.MedicalEntryResponse;
 import com.medical.medcore.dto.response.MedicalRecordResponse;
@@ -56,6 +57,22 @@ public class MedicalRecordController {
             @PathVariable Long appointmentId) {
         return ResponseEntity.ok(new ApiResponse<>(true,
                 medicalRecordService.getEntriesByAppointment(appointmentId), "Atenciones de la cita"));
+    }
+
+    @RequireDoctorOrAdmin
+    @PostMapping("/entries/{entryId}/sign")
+    public ResponseEntity<ApiResponse<MedicalEntryResponse>> signEntry(@PathVariable Long entryId) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.signEntry(entryId), "Nota firmada y bloqueada"));
+    }
+
+    @RequireDoctorOrAdmin
+    @PostMapping("/orders/{orderId}/results")
+    public ResponseEntity<ApiResponse<MedicalEntryResponse.OrderItem>> addOrderResult(
+            @PathVariable Long orderId,
+            @RequestBody OrderResultRequest request) {
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                medicalRecordService.addOrderResult(orderId, request), "Resultado registrado"));
     }
 
     @RequireDoctorOrAdmin

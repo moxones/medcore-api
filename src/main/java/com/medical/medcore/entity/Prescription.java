@@ -34,6 +34,18 @@ public class Prescription {
     @Column(length = 100)
     private String duration;
 
+    @Column(length = 50)
+    private String route;
+
+    @Column(length = 50)
+    private String quantity;
+
+    @Column(length = 100)
+    private String presentation;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive;
+
     @Column(columnDefinition = "TEXT")
     private String instructions;
 
@@ -42,6 +54,7 @@ public class Prescription {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (isActive == null) isActive = true;
     }
 }

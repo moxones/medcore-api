@@ -4,9 +4,13 @@ import com.medical.medcore.entity.Triage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface TriageRepository extends JpaRepository<Triage, Long> {
-    Optional<Triage> findByAppointmentId(Long appointmentId);
+
+    List<Triage> findByAppointmentIdOrderByMeasuredAtDescIdDesc(Long appointmentId);
+
+    Optional<Triage> findFirstByAppointmentIdOrderByMeasuredAtDescIdDesc(Long appointmentId);
 }

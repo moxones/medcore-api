@@ -33,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private final PersonDocumentRepository personDocumentRepository;
     private final DocumentTypeRepository documentTypeRepository;
     private final StaffBranchRepository staffBranchRepository;
+    private final DoctorBranchRepository doctorBranchRepository;
 
     public AuthServiceImpl(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
@@ -44,7 +45,8 @@ public class AuthServiceImpl implements AuthService {
                            RoleRepository roleRepository,
                            PersonDocumentRepository personDocumentRepository,
                            DocumentTypeRepository documentTypeRepository,
-                           StaffBranchRepository staffBranchRepository) {
+                           StaffBranchRepository staffBranchRepository,
+                           DoctorBranchRepository doctorBranchRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tenantRepository = tenantRepository;
@@ -56,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
         this.personDocumentRepository = personDocumentRepository;
         this.documentTypeRepository = documentTypeRepository;
         this.staffBranchRepository = staffBranchRepository;
+        this.doctorBranchRepository = doctorBranchRepository;
     }
 
     @Override
@@ -142,7 +145,7 @@ public class AuthServiceImpl implements AuthService {
         user = userRepository.save(user);
 
         List<String> roles = extractRoles(user);
-        List<Long> branchIds = staffBranchRepository.findActiveBranchIdsByUserId(user.getId());
+        List<Long> branchIds = resolveBranchIds(user);
 
         String accessToken = jwtProvider.generateToken(
                 user.getId(),
@@ -181,7 +184,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<String> roles = extractRoles(user);
-        List<Long> branchIds = staffBranchRepository.findActiveBranchIdsByUserId(user.getId());
+        List<Long> branchIds = resolveBranchIds(user);
 
         String accessToken = jwtProvider.generateToken(
                 user.getId(),
@@ -221,7 +224,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<String> roles = extractRoles(user);
-        List<Long> branchIds = staffBranchRepository.findActiveBranchIdsByUserId(user.getId());
+        List<Long> branchIds = resolveBranchIds(user);
 
         String newAccess = jwtProvider.generateToken(
                 user.getId(),
@@ -272,8 +275,20 @@ public class AuthServiceImpl implements AuthService {
                 .lastName(user.getPerson().getLastName())
                 .tenantId(tenantId)
                 .profileCompleted(Boolean.TRUE.equals(user.getPerson().getProfileCompleted()))
-                .branchIds(staffBranchRepository.findActiveBranchIdsByUserId(user.getId()))
+                .branchIds(resolveBranchIds(user))
                 .build();
+    }
+
+    /**
+     * Sucursales efectivas del usuario: une las asignaciones como personal
+     * operativo (staff_branches) con las del médico (doctor_branches), ya que
+     * un médico tiene sus sucursales en doctor_branches y no en staff_branches.
+     */
+    private List<Long> resolveBranchIds(User user) {
+        java.util.LinkedHashSet<Long> branchIds = new java.util.LinkedHashSet<>(
+                staffBranchRepository.findActiveBranchIdsByUserId(user.getId()));
+        branchIds.addAll(doctorBranchRepository.findActiveBranchIdsByPersonId(user.getPerson().getId()));
+        return new java.util.ArrayList<>(branchIds);
     }
 
     private List<String> extractRoles(User user) {

@@ -14,7 +14,10 @@
       "Bash(mvn compile *)",
       "Bash(./mvnw compile *)",
       "Bash(./mvnw -q -o compile)",
-      "Bash(./mvnw -q compile)"
+      "Bash(./mvnw -q compile)",
+      "PowerShell($pg = Get-ChildItem \"C:\\\\Program Files\\\\PostgreSQL\" -ErrorAction SilentlyContinue; if \\($pg\\) { foreach \\($d in $pg\\) { $p = Join-Path $d.FullName \"bin\\\\psql.exe\"; if \\(Test-Path $p\\) { Write-Output $p } } } else { Write-Output \"no PG dir\" }; Get-Command psql -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)",
+      "PowerShell(& \"C:\\\\fuentes\\\\Personal\\\\medcore-api\\\\mvnw.cmd\" -q -f \"C:\\\\fuentes\\\\Personal\\\\medcore-api\\\\pom.xml\" compile 2>&1)",
+      "Bash(./mvnw -q compile -o)"
     ]
   }
 }

@@ -1,25 +1,22 @@
 package com.medical.medcore.service.medicalrecord.impl;
 
+import com.medical.medcore.config.audit.ClinicalAuditContext;
+import com.medical.medcore.config.exception.BadRequestException;
 import com.medical.medcore.config.exception.NotFoundException;
+import com.medical.medcore.dto.request.CertificateRequest;
 import com.medical.medcore.dto.request.CreateMedicalEntryRequest;
+import com.medical.medcore.dto.request.DiagnosisRequest;
+import com.medical.medcore.dto.request.OrderRequest;
+import com.medical.medcore.dto.request.OrderResultRequest;
 import com.medical.medcore.dto.request.PrescriptionRequest;
+import com.medical.medcore.dto.request.ProcedureRequest;
 import com.medical.medcore.dto.request.UpdatePatientClinicalRequest;
 import com.medical.medcore.dto.response.MedicalEntryResponse;
+import com.medical.medcore.dto.response.MedicalEntryResponse.*;
 import com.medical.medcore.dto.response.MedicalRecordResponse;
 import com.medical.medcore.dto.response.PrescriptionResponse;
-import com.medical.medcore.entity.Appointment;
-import com.medical.medcore.entity.MedicalEntry;
-import com.medical.medcore.entity.MedicalRecord;
-import com.medical.medcore.entity.Patient;
-import com.medical.medcore.entity.Person;
-import com.medical.medcore.entity.Prescription;
-import com.medical.medcore.entity.User;
-import com.medical.medcore.repository.AppointmentRepository;
-import com.medical.medcore.repository.MedicalEntryRepository;
-import com.medical.medcore.repository.MedicalRecordRepository;
-import com.medical.medcore.repository.PatientRepository;
-import com.medical.medcore.repository.PrescriptionRepository;
-import com.medical.medcore.repository.UserRepository;
+import com.medical.medcore.entity.*;
+import com.medical.medcore.repository.*;
 import com.medical.medcore.service.medicalrecord.MedicalRecordService;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +24,12 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,9 +39,16 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     private final MedicalRecordRepository medicalRecordRepository;
     private final MedicalEntryRepository medicalEntryRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final MedicalEntryDiagnosisRepository diagnosisRepository;
+    private final MedicalProcedureRepository procedureRepository;
+    private final MedicalOrderRepository orderRepository;
+    private final MedicalOrderResultRepository orderResultRepository;
+    private final MedicalCertificateRepository certificateRepository;
+    private final Cie10CodeRepository cie10CodeRepository;
     private final PatientRepository patientRepository;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
+    private final ClinicalAuditContext clinicalAuditContext;
 
     @Override
     @Transactional(readOnly = true)
@@ -71,6 +77,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     @Override
     @Transactional
     public MedicalEntryResponse addEntry(CreateMedicalEntryRequest request) {
+        clinicalAuditContext.apply();
         Long tenantId = TenantContext.requireTenantId();
         Long userId = TenantContext.getCurrentUserId();
 
@@ -86,33 +93,25 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         MedicalEntry entry = MedicalEntry.builder()
                 .medicalRecord(record)
                 .appointment(appointment)
+                .entryType(request.entryType() != null ? request.entryType() : "CONSULTATION")
+                .chiefComplaint(request.chiefComplaint())
+                .presentIllness(request.presentIllness())
+                .reviewOfSystems(request.reviewOfSystems())
+                .physicalExamination(request.physicalExamination())
+                .assessment(request.assessment())
+                .plan(request.plan())
                 .diagnosis(request.diagnosis())
                 .treatment(request.treatment())
                 .notes(request.notes())
+                .followUpAt(request.followUpAt())
+                .isLocked(false)
                 .createdBy(userId)
                 .build();
         entry = medicalEntryRepository.save(entry);
 
-        List<Prescription> prescriptions = new ArrayList<>();
-        if (request.prescriptions() != null) {
-            for (PrescriptionRequest pr : request.prescriptions()) {
-                if (pr == null || pr.medication() == null || pr.medication().isBlank()) continue;
-                prescriptions.add(Prescription.builder()
-                        .medicalEntry(entry)
-                        .medication(pr.medication())
-                        .dosage(pr.dosage())
-                        .frequency(pr.frequency())
-                        .duration(pr.duration())
-                        .instructions(pr.instructions())
-                        .build());
-            }
-            if (!prescriptions.isEmpty()) {
-                prescriptions = prescriptionRepository.saveAll(prescriptions);
-            }
-        }
+        persistChildren(entry, request, userId);
 
-        String authorName = resolveAuthorName(userId, tenantId);
-        return mapEntry(entry, prescriptions, authorName);
+        return mapEntries(List.of(entry), tenantId).get(0);
     }
 
     @Override
@@ -121,10 +120,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         Long tenantId = TenantContext.requireTenantId();
         MedicalEntry entry = medicalEntryRepository.findByIdAndTenantId(entryId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Entrada de historia clínica no encontrada"));
-
-        List<Prescription> prescriptions = prescriptionRepository.findByMedicalEntryId(entry.getId());
-        String authorName = resolveAuthorName(entry.getCreatedBy(), tenantId);
-        return mapEntry(entry, prescriptions, authorName);
+        return mapEntries(List.of(entry), tenantId).get(0);
     }
 
     @Override
@@ -133,6 +129,57 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         Long tenantId = TenantContext.requireTenantId();
         List<MedicalEntry> entries = medicalEntryRepository.findByAppointmentIdAndTenantId(appointmentId, tenantId);
         return mapEntries(entries, tenantId);
+    }
+
+    @Override
+    @Transactional
+    public MedicalEntryResponse signEntry(Long entryId) {
+        clinicalAuditContext.apply();
+        Long tenantId = TenantContext.requireTenantId();
+        Long userId = TenantContext.requireCurrentUserId();
+
+        MedicalEntry entry = medicalEntryRepository.findByIdAndTenantId(entryId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Entrada de historia clínica no encontrada"));
+
+        if (Boolean.TRUE.equals(entry.getIsLocked())) {
+            throw new BadRequestException("La nota ya está firmada y bloqueada");
+        }
+
+        entry.setSignedBy(userId);
+        entry.setSignedAt(LocalDateTime.now());
+        entry.setIsLocked(true);
+        entry.setUpdatedBy(userId);
+        entry = medicalEntryRepository.save(entry);
+
+        return mapEntries(List.of(entry), tenantId).get(0);
+    }
+
+    @Override
+    @Transactional
+    public MedicalEntryResponse.OrderItem addOrderResult(Long orderId, OrderResultRequest request) {
+        clinicalAuditContext.apply();
+        Long tenantId = TenantContext.requireTenantId();
+        Long userId = TenantContext.getCurrentUserId();
+
+        MedicalOrder order = orderRepository.findByIdAndTenantId(orderId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Orden no encontrada"));
+
+        MedicalOrderResult result = MedicalOrderResult.builder()
+                .medicalOrder(order)
+                .result(request.result())
+                .fileUrl(request.fileUrl())
+                .resultDate(request.resultDate() != null ? request.resultDate() : LocalDateTime.now())
+                .createdBy(userId)
+                .build();
+        orderResultRepository.save(result);
+
+        order.setStatus(request.status() != null ? request.status() : "COMPLETED");
+        orderRepository.save(order);
+
+        List<OrderResultItem> results = orderResultRepository.findByMedicalOrderIdOrderByIdAsc(order.getId())
+                .stream().map(this::mapResult).toList();
+        return new OrderItem(order.getId(), order.getOrderType(), order.getDescription(),
+                order.getStatus(), order.getRequestedAt(), results);
     }
 
     @Override
@@ -154,6 +201,92 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    private void persistChildren(MedicalEntry entry, CreateMedicalEntryRequest request, Long userId) {
+        if (request.prescriptions() != null) {
+            List<Prescription> prescriptions = new ArrayList<>();
+            for (PrescriptionRequest pr : request.prescriptions()) {
+                if (pr == null || pr.medication() == null || pr.medication().isBlank()) continue;
+                prescriptions.add(Prescription.builder()
+                        .medicalEntry(entry)
+                        .medication(pr.medication())
+                        .dosage(pr.dosage())
+                        .frequency(pr.frequency())
+                        .duration(pr.duration())
+                        .route(pr.route())
+                        .quantity(pr.quantity())
+                        .presentation(pr.presentation())
+                        .isActive(true)
+                        .instructions(pr.instructions())
+                        .build());
+            }
+            if (!prescriptions.isEmpty()) prescriptionRepository.saveAll(prescriptions);
+        }
+
+        if (request.diagnoses() != null) {
+            List<MedicalEntryDiagnosis> diagnoses = new ArrayList<>();
+            for (DiagnosisRequest dr : request.diagnoses()) {
+                if (dr == null || dr.description() == null || dr.description().isBlank()) continue;
+                diagnoses.add(MedicalEntryDiagnosis.builder()
+                        .medicalEntry(entry)
+                        .cie10Id(dr.cie10Id())
+                        .description(dr.description())
+                        .diagnosisType(dr.diagnosisType() != null ? dr.diagnosisType() : "DEFINITIVE")
+                        .diagnosisRank(dr.diagnosisRank() != null ? dr.diagnosisRank() : "PRIMARY")
+                        .notes(dr.notes())
+                        .createdBy(userId)
+                        .build());
+            }
+            if (!diagnoses.isEmpty()) diagnosisRepository.saveAll(diagnoses);
+        }
+
+        if (request.procedures() != null) {
+            List<MedicalProcedure> procedures = new ArrayList<>();
+            for (ProcedureRequest pr : request.procedures()) {
+                if (pr == null || pr.name() == null || pr.name().isBlank()) continue;
+                procedures.add(MedicalProcedure.builder()
+                        .medicalEntry(entry)
+                        .code(pr.code())
+                        .name(pr.name())
+                        .notes(pr.notes())
+                        .performedAt(pr.performedAt())
+                        .createdBy(userId)
+                        .build());
+            }
+            if (!procedures.isEmpty()) procedureRepository.saveAll(procedures);
+        }
+
+        if (request.orders() != null) {
+            List<MedicalOrder> orders = new ArrayList<>();
+            for (OrderRequest or : request.orders()) {
+                if (or == null || or.orderType() == null || or.orderType().isBlank()) continue;
+                orders.add(MedicalOrder.builder()
+                        .medicalEntry(entry)
+                        .orderType(or.orderType())
+                        .description(or.description())
+                        .status("REQUESTED")
+                        .createdBy(userId)
+                        .build());
+            }
+            if (!orders.isEmpty()) orderRepository.saveAll(orders);
+        }
+
+        if (request.certificates() != null) {
+            List<MedicalCertificate> certificates = new ArrayList<>();
+            for (CertificateRequest cr : request.certificates()) {
+                if (cr == null || cr.certificateType() == null || cr.certificateType().isBlank()) continue;
+                certificates.add(MedicalCertificate.builder()
+                        .medicalEntry(entry)
+                        .certificateType(cr.certificateType())
+                        .content(cr.content())
+                        .restDays(cr.restDays())
+                        .validUntil(cr.validUntil())
+                        .createdBy(userId)
+                        .build());
+            }
+            if (!certificates.isEmpty()) certificateRepository.saveAll(certificates);
+        }
+    }
 
     private MedicalRecord getOrCreateRecord(Patient patient, Long tenantId, Long userId) {
         return medicalRecordRepository.findByPatientIdAndTenantId(patient.getId(), tenantId)
@@ -179,7 +312,7 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
 
         List<MedicalEntryResponse> entryResponses = Collections.emptyList();
         Long recordId = null;
-        java.time.LocalDateTime recordCreatedAt = null;
+        LocalDateTime recordCreatedAt = null;
 
         if (record != null) {
             recordId = record.getId();
@@ -205,52 +338,132 @@ public class MedicalRecordServiceImpl implements MedicalRecordService {
         if (entries.isEmpty()) return Collections.emptyList();
 
         List<Long> entryIds = entries.stream().map(MedicalEntry::getId).toList();
-        Map<Long, List<Prescription>> presByEntry = prescriptionRepository.findByMedicalEntryIdIn(entryIds)
-                .stream()
-                .collect(Collectors.groupingBy(p -> p.getMedicalEntry().getId()));
 
-        Map<Long, String> authorNames = resolveAuthorNames(
-                entries.stream().map(MedicalEntry::getCreatedBy).filter(java.util.Objects::nonNull).distinct().toList(),
-                tenantId);
+        Map<Long, List<Prescription>> presByEntry = prescriptionRepository.findByMedicalEntryIdIn(entryIds)
+                .stream().collect(Collectors.groupingBy(p -> p.getMedicalEntry().getId()));
+
+        List<MedicalEntryDiagnosis> allDiagnoses = diagnosisRepository.findByMedicalEntryIdInOrderByIdAsc(entryIds);
+        Map<Long, List<MedicalEntryDiagnosis>> diagByEntry = allDiagnoses.stream()
+                .collect(Collectors.groupingBy(d -> d.getMedicalEntry().getId()));
+        Map<Long, String> cie10Codes = resolveCie10Codes(allDiagnoses);
+
+        Map<Long, List<MedicalProcedure>> procByEntry = procedureRepository.findByMedicalEntryIdInOrderByIdAsc(entryIds)
+                .stream().collect(Collectors.groupingBy(p -> p.getMedicalEntry().getId()));
+
+        List<MedicalOrder> allOrders = orderRepository.findByMedicalEntryIdInOrderByIdAsc(entryIds);
+        Map<Long, List<MedicalOrder>> ordByEntry = allOrders.stream()
+                .collect(Collectors.groupingBy(o -> o.getMedicalEntry().getId()));
+        Map<Long, List<OrderResultItem>> resultsByOrder = allOrders.isEmpty()
+                ? Map.of()
+                : orderResultRepository.findByMedicalOrderIdInOrderByIdAsc(
+                        allOrders.stream().map(MedicalOrder::getId).toList())
+                .stream().collect(Collectors.groupingBy(r -> r.getMedicalOrder().getId(),
+                        Collectors.mapping(this::mapResult, Collectors.toList())));
+
+        Map<Long, List<MedicalCertificate>> certByEntry = certificateRepository.findByMedicalEntryIdInOrderByIdAsc(entryIds)
+                .stream().collect(Collectors.groupingBy(c -> c.getMedicalEntry().getId()));
+
+        List<Long> userIds = new ArrayList<>();
+        entries.forEach(e -> {
+            if (e.getCreatedBy() != null) userIds.add(e.getCreatedBy());
+            if (e.getSignedBy() != null) userIds.add(e.getSignedBy());
+        });
+        Map<Long, String> authorNames = resolveAuthorNames(userIds.stream().distinct().toList(), tenantId);
 
         return entries.stream()
-                .map(e -> mapEntry(
-                        e,
-                        presByEntry.getOrDefault(e.getId(), Collections.emptyList()),
-                        e.getCreatedBy() != null ? authorNames.get(e.getCreatedBy()) : null))
+                .map(e -> mapEntry(e,
+                        presByEntry.getOrDefault(e.getId(), List.of()),
+                        diagByEntry.getOrDefault(e.getId(), List.of()),
+                        cie10Codes,
+                        procByEntry.getOrDefault(e.getId(), List.of()),
+                        ordByEntry.getOrDefault(e.getId(), List.of()),
+                        resultsByOrder,
+                        certByEntry.getOrDefault(e.getId(), List.of()),
+                        authorNames))
                 .toList();
     }
 
-    private MedicalEntryResponse mapEntry(MedicalEntry e, List<Prescription> prescriptions, String authorName) {
+    private MedicalEntryResponse mapEntry(MedicalEntry e,
+                                          List<Prescription> prescriptions,
+                                          List<MedicalEntryDiagnosis> diagnoses,
+                                          Map<Long, String> cie10Codes,
+                                          List<MedicalProcedure> procedures,
+                                          List<MedicalOrder> orders,
+                                          Map<Long, List<OrderResultItem>> resultsByOrder,
+                                          List<MedicalCertificate> certificates,
+                                          Map<Long, String> authorNames) {
+
         List<PrescriptionResponse> pres = prescriptions.stream()
                 .map(p -> new PrescriptionResponse(
-                        p.getId(), p.getMedication(), p.getDosage(),
-                        p.getFrequency(), p.getDuration(), p.getInstructions()))
+                        p.getId(), p.getMedication(), p.getDosage(), p.getFrequency(), p.getDuration(),
+                        p.getRoute(), p.getQuantity(), p.getPresentation(), p.getIsActive(), p.getInstructions()))
+                .toList();
+
+        List<DiagnosisItem> diag = diagnoses.stream()
+                .map(d -> new DiagnosisItem(d.getId(), d.getCie10Id(),
+                        d.getCie10Id() != null ? cie10Codes.get(d.getCie10Id()) : null,
+                        d.getDescription(), d.getDiagnosisType(), d.getDiagnosisRank(), d.getNotes()))
+                .toList();
+
+        List<ProcedureItem> proc = procedures.stream()
+                .map(p -> new ProcedureItem(p.getId(), p.getCode(), p.getName(), p.getNotes(), p.getPerformedAt()))
+                .toList();
+
+        List<OrderItem> ord = orders.stream()
+                .map(o -> new OrderItem(o.getId(), o.getOrderType(), o.getDescription(), o.getStatus(),
+                        o.getRequestedAt(), resultsByOrder.getOrDefault(o.getId(), List.of())))
+                .toList();
+
+        List<CertificateItem> cert = certificates.stream()
+                .map(c -> new CertificateItem(c.getId(), c.getCertificateType(), c.getContent(),
+                        c.getRestDays(), c.getIssuedAt(), c.getValidUntil()))
                 .toList();
 
         return new MedicalEntryResponse(
                 e.getId(),
                 e.getAppointment() != null ? e.getAppointment().getId() : null,
+                e.getEntryType(),
+                e.getChiefComplaint(),
+                e.getPresentIllness(),
+                e.getReviewOfSystems(),
+                e.getPhysicalExamination(),
+                e.getAssessment(),
+                e.getPlan(),
                 e.getDiagnosis(),
                 e.getTreatment(),
                 e.getNotes(),
+                e.getFollowUpAt(),
+                e.getIsLocked(),
+                e.getSignedBy(),
+                e.getSignedBy() != null ? authorNames.get(e.getSignedBy()) : null,
+                e.getSignedAt(),
                 e.getCreatedAt(),
                 e.getCreatedBy(),
-                authorName,
-                pres
+                e.getCreatedBy() != null ? authorNames.get(e.getCreatedBy()) : null,
+                pres, diag, proc, ord, cert
         );
     }
 
-    private String resolveAuthorName(Long userId, Long tenantId) {
-        if (userId == null) return null;
-        return resolveAuthorNames(List.of(userId), tenantId).get(userId);
+    private OrderResultItem mapResult(MedicalOrderResult r) {
+        return new OrderResultItem(r.getId(), r.getResult(), r.getFileUrl(), r.getResultDate());
+    }
+
+    private Map<Long, String> resolveCie10Codes(List<MedicalEntryDiagnosis> diagnoses) {
+        List<Long> ids = diagnoses.stream()
+                .map(MedicalEntryDiagnosis::getCie10Id)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) return Map.of();
+        return cie10CodeRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Cie10Code::getId, Cie10Code::getCode));
     }
 
     private Map<Long, String> resolveAuthorNames(List<Long> userIds, Long tenantId) {
         if (userIds == null || userIds.isEmpty()) return Collections.emptyMap();
         return userIds.stream()
                 .map(id -> userRepository.findByIdAndTenantId(id, tenantId).orElse(null))
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toMap(
                         User::getId,
                         u -> {
