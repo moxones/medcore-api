@@ -24,6 +24,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           source: target/medcore-0.0.1-SNAPSHOT.jar
           target: /root/
+          strip_components: 1
 
       - uses: appleboy/ssh-action@v1.0.0
         with:
