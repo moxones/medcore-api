@@ -23,10 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Uso de la plataforma. "Usuarios activos" y "Logins" no se exponen porque la BD aún no registra
- * el último acceso (users.last_login_at); se muestran como — hasta que exista esa columna.
- */
 @Component
 @RequiredArgsConstructor
 public class PlatformUsageProvider extends BaseReportProvider implements ReportProvider {

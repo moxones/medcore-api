@@ -1,18 +1,21 @@
-﻿server:
+server:
   port: 8080
   servlet:
     context-path: /api
+  # Necesario detrás de nginx: respeta X-Forwarded-For / X-Forwarded-Proto
+  # para que getRemoteAddr() y los esquemas https se resuelvan correctamente.
+  forward-headers-strategy: native
 
 spring:
   application:
     name: medcore
 
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/health_system_db
-    username: postgres
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/health_system_db}
+    username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:imvfbh5cs}
     driver-class-name: org.postgresql.Driver
 
@@ -35,11 +38,6 @@ spring:
   jackson:
     time-zone: America/Lima
 
-logging:
-  level:
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql.BasicBinder: trace
-
 security:
   jwt:
     # En producción DEBE definirse JWT_SECRET (>= 32 caracteres / 256 bits).
@@ -47,3 +45,15 @@ security:
     secret: ${JWT_SECRET:dev-only-medcore-secret-key-change-me-in-prod-0123456789}
     expiration: 900000
     refresh-expiration: 604800000
+
+---
+# Logging SQL verboso sólo en desarrollo local
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type.descriptor.sql.BasicBinder: trace

@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** "Recetas y Órdenes Emitidas" — acotado al médico autenticado. */
 @Component
 @RequiredArgsConstructor
 public class DoctorPrescriptionsProvider extends BaseReportProvider implements ReportProvider {

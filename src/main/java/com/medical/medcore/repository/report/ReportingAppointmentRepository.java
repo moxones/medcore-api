@@ -8,13 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Consultas de agregación de citas para reportería (SQL nativo Postgres). Devuelven Object[]
- * y se mapean en los providers. {@code doctorId = -1} significa "todos los médicos".
- */
 public interface ReportingAppointmentRepository extends Repository<Appointment, Long> {
 
-    /** [code, name, count] por estado de cita. */
     @Query(value = """
             SELECT s.code, s.name, COUNT(*)
             FROM appointments a
@@ -32,7 +27,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                    @Param("branchIds") List<Long> branchIds,
                                    @Param("doctorId") Long doctorId);
 
-    /** [flowStatus, count] por estado del flujo operativo (sala de espera). */
     @Query(value = """
             SELECT COALESCE(a.flow_status, 'SCHEDULED'), COUNT(*)
             FROM appointments a
@@ -47,7 +41,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                  @Param("applyBranch") boolean applyBranch,
                                  @Param("branchIds") List<Long> branchIds);
 
-    /** [specialtyName, count] por especialidad del médico. */
     @Query(value = """
             SELECT sp.name, COUNT(*)
             FROM appointments a
@@ -65,7 +58,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                       @Param("applyBranch") boolean applyBranch,
                                       @Param("branchIds") List<Long> branchIds);
 
-    /** [day, total, attended, cancelled, noShow] por día. */
     @Query(value = """
             SELECT to_char(a.scheduled_at, 'YYYY-MM-DD') AS day,
                    COUNT(*) AS total,
@@ -88,7 +80,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                               @Param("branchIds") List<Long> branchIds,
                               @Param("doctorId") Long doctorId);
 
-    /** [doctorId, doctorName, total, completed, noShow] por médico. */
     @Query(value = """
             SELECT d.id,
                    TRIM(COALESCE(per.first_name, '') || ' ' || COALESCE(per.last_name, '')) AS doctor_name,
@@ -113,7 +104,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                       @Param("branchIds") List<Long> branchIds,
                                       @Param("doctorId") Long doctorId);
 
-    /** [flowStatus, count] por día para un médico (gráfico "consultas por día"). */
     @Query(value = """
             SELECT to_char(a.scheduled_at, 'YYYY-MM-DD') AS day, COUNT(*)
             FROM appointments a
@@ -127,7 +117,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                            @Param("from") LocalDateTime from,
                                            @Param("to") LocalDateTime to);
 
-    /** Pacientes distintos atendidos por un médico en el rango. */
     @Query(value = """
             SELECT COUNT(DISTINCT a.patient_id)
             FROM appointments a
@@ -139,7 +128,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                    @Param("from") LocalDateTime from,
                                    @Param("to") LocalDateTime to);
 
-    /** [specialtyName, total, noShow] resumen por especialidad de un médico. */
     @Query(value = """
             SELECT sp.name,
                    COUNT(*) AS total,
@@ -157,7 +145,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                              @Param("from") LocalDateTime from,
                                              @Param("to") LocalDateTime to);
 
-    /** [ageBucket, count] distribución por grupo de edad de pacientes con cita en el rango. */
     @Query(value = """
             SELECT bucket, COUNT(DISTINCT patient_id) FROM (
                 SELECT a.patient_id,
@@ -185,7 +172,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                              @Param("applyBranch") boolean applyBranch,
                              @Param("branchIds") List<Long> branchIds);
 
-    /** Pacientes distintos atendidos en el rango. */
     @Query(value = """
             SELECT COUNT(DISTINCT a.patient_id)
             FROM appointments a
@@ -199,7 +185,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                           @Param("applyBranch") boolean applyBranch,
                           @Param("branchIds") List<Long> branchIds);
 
-    /** Pacientes nuevos: su primera cita histórica cae dentro del rango. */
     @Query(value = """
             SELECT COUNT(*) FROM (
                 SELECT a.patient_id, MIN(a.scheduled_at) AS first_at
@@ -216,7 +201,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                      @Param("applyBranch") boolean applyBranch,
                      @Param("branchIds") List<Long> branchIds);
 
-    /** Edad promedio (años) de pacientes con cita en el rango. */
     @Query(value = """
             SELECT AVG(date_part('year', age(per.birth_date)))
             FROM appointments a
@@ -233,7 +217,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                       @Param("applyBranch") boolean applyBranch,
                       @Param("branchIds") List<Long> branchIds);
 
-    /** [branchId, branchName, occupied] citas no canceladas por sucursal (ocupación). */
     @Query(value = """
             SELECT b.id, b.name, COUNT(*)
             FROM appointments a
@@ -252,7 +235,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                     @Param("applyBranch") boolean applyBranch,
                                     @Param("branchIds") List<Long> branchIds);
 
-    /** Duración promedio de consulta en minutos (inicio -> fin/cierre) en el rango. */
     @Query(value = """
             SELECT AVG(EXTRACT(EPOCH FROM (COALESCE(a.completed_at, a.finished_at) - a.started_at)) / 60.0)
             FROM appointments a
@@ -271,7 +253,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                   @Param("branchIds") List<Long> branchIds,
                                   @Param("doctorId") Long doctorId);
 
-    /** [avgMinutes, maxMinutes, attended] tiempos de espera (check-in -> inicio de atención). */
     @Query(value = """
             SELECT AVG(EXTRACT(EPOCH FROM (a.started_at - a.checked_in_at)) / 60.0),
                    MAX(EXTRACT(EPOCH FROM (a.started_at - a.checked_in_at)) / 60.0),
@@ -289,7 +270,6 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                     @Param("applyBranch") boolean applyBranch,
                                     @Param("branchIds") List<Long> branchIds);
 
-    /** [hourSlot, avgWaitMinutes] espera promedio por hora del día. */
     @Query(value = """
             SELECT to_char(a.checked_in_at, 'HH24') || ':00' AS slot,
                    AVG(EXTRACT(EPOCH FROM (a.started_at - a.checked_in_at)) / 60.0)

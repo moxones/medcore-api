@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Exportador genérico {@link ReportResult} → Excel (Apache POI streaming). */
 @Component
 public class XlsxReportExporter implements ReportExporter {
 
@@ -185,13 +184,11 @@ public class XlsxReportExporter implements ReportExporter {
     }
 
     private void autosize(Sheet sheet, int columns) {
-        // SXSSF requiere trackear las columnas para autosize; tamaño fijo razonable en su lugar.
         for (int c = 0; c < columns; c++) {
             sheet.setColumnWidth(c, 22 * 256);
         }
     }
 
-    /** Nombre de hoja válido (<=31 chars, sin caracteres prohibidos) y único en el libro. */
     private String uniqueName(String raw, Set<String> used) {
         String base = WorkbookUtil.createSafeSheetName(raw == null || raw.isBlank() ? "Hoja" : raw);
         String name = base;

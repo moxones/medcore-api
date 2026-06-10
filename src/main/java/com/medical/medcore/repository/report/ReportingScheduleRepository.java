@@ -8,10 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 
-/** Horarios médicos para estimar la capacidad de agenda por sucursal. */
 public interface ReportingScheduleRepository extends Repository<DoctorSchedule, Long> {
 
-    /** [branchId, branchName, dayOfWeek, startTime, endTime, slotDurationMinutes, maxPatientsPerSlot]. */
     @Query(value = """
             SELECT b.id, b.name, ds.day_of_week, ds.start_time, ds.end_time,
                    ds.slot_duration_minutes, COALESCE(ds.max_patients_per_slot, 1)

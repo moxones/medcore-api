@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Estado de suscripciones de la plataforma. El vencimiento usa {@code subscriptions.end_date}. */
 @Component
 @RequiredArgsConstructor
 public class PlatformSubscriptionStatusProvider extends BaseReportProvider implements ReportProvider {
@@ -80,7 +79,6 @@ public class PlatformSubscriptionStatusProvider extends BaseReportProvider imple
                     long days = ChronoUnit.DAYS.between(today, LocalDate.parse(endDate));
                     daysLeft = String.valueOf(days);
                 } catch (Exception ignored) {
-                    // endDate no parseable: se deja "—"
                 }
             }
             Map<String, Object> row = new LinkedHashMap<>();

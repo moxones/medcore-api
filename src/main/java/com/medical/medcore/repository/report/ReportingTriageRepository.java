@@ -8,10 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Agregaciones de triaje para reportería (SQL nativo). */
 public interface ReportingTriageRepository extends Repository<Triage, Long> {
 
-    /** [priorityLevel, count] triajes por prioridad. */
     @Query(value = """
             SELECT COALESCE(t.priority_level, 'SIN_PRIORIDAD'), COUNT(*)
             FROM triage t
@@ -28,7 +26,6 @@ public interface ReportingTriageRepository extends Repository<Triage, Long> {
                               @Param("applyBranch") boolean applyBranch,
                               @Param("branchIds") List<Long> branchIds);
 
-    /** [day, total, high, medium, low] triajes por día y nivel. */
     @Query(value = """
             SELECT to_char(t.created_at, 'YYYY-MM-DD') AS day,
                    COUNT(*) AS total,
@@ -48,7 +45,6 @@ public interface ReportingTriageRepository extends Repository<Triage, Long> {
                                    @Param("applyBranch") boolean applyBranch,
                                    @Param("branchIds") List<Long> branchIds);
 
-    /** [totalTriages, distinctPatients, highPriority] KPIs de triaje. */
     @Query(value = """
             SELECT COUNT(*) AS total,
                    COUNT(DISTINCT a.patient_id) AS patients,

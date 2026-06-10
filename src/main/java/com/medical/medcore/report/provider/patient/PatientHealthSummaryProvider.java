@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/** "Resumen de Salud" — signos vitales del paciente autenticado. */
 @Component
 @RequiredArgsConstructor
 public class PatientHealthSummaryProvider extends BaseReportProvider implements ReportProvider {
@@ -45,7 +44,6 @@ public class PatientHealthSummaryProvider extends BaseReportProvider implements 
         Long patientId = currentUser.resolvePatientId(ctx);
         Long t = ctx.tenantId();
 
-        // [date, weight, bmi, blood_pressure, heart_rate, temperature] ordenado ascendente.
         List<Object[]> vitals = patientReports.vitalsHistory(t, patientId, q.fromDateTime(), q.toDateTimeExclusive());
         Object[] latest = vitals.isEmpty() ? null : vitals.get(vitals.size() - 1);
 

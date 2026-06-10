@@ -8,10 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Agregaciones de reprogramaciones para reportería. */
 public interface ReportingRescheduleRepository extends Repository<AppointmentReschedule, Long> {
 
-    /** Nº de reprogramaciones en el rango (por sucursal de la cita). */
     @Query(value = """
             SELECT COUNT(*)
             FROM appointment_reschedules r
@@ -26,7 +24,6 @@ public interface ReportingRescheduleRepository extends Repository<AppointmentRes
                       @Param("applyBranch") boolean applyBranch,
                       @Param("branchIds") List<Long> branchIds);
 
-    /** [reason, count] motivos de reprogramación (proxy de "motivos"). */
     @Query(value = """
             SELECT COALESCE(NULLIF(TRIM(r.reason), ''), 'Sin motivo'), COUNT(*)
             FROM appointment_reschedules r

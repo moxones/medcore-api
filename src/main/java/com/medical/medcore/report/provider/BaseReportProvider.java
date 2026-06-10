@@ -9,10 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Helpers comunes a todos los providers. */
 public abstract class BaseReportProvider {
-
-    // --- Conversión de columnas de queries nativas (Number heterogéneos) ---
 
     protected long asLong(Object o) {
         return o instanceof Number n ? n.longValue() : 0L;
@@ -44,11 +41,6 @@ public abstract class BaseReportProvider {
         return com.medical.medcore.report.support.ReportFormatter.dateTime(LocalDateTime.now());
     }
 
-    /**
-     * Alcance por sucursal: el staff con sucursales asignadas queda acotado a ellas (aunque no
-     * mande branchId); si además filtra por una sucursal contenida en su alcance, se reduce a esa.
-     * Sin alcance asignado, respeta el branchId opcional o devuelve todas (none()).
-     */
     protected BranchFilter resolveBranches(ReportQuery q, ReportContext ctx) {
         if (ctx.hasBranchScope()) {
             List<Long> scope = ctx.branchIds();

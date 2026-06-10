@@ -8,10 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Agregaciones para los reportes del paciente autenticado (alcance por patient_id). */
 public interface ReportingPatientRepository extends Repository<Appointment, Long> {
 
-    /** [date, doctorName, specialty, statusName] historial de citas del paciente. */
     @Query(value = """
             SELECT to_char(a.scheduled_at, 'YYYY-MM-DD'),
                    TRIM(COALESCE(dper.first_name, '') || ' ' || COALESCE(dper.last_name, '')) AS doctor,
@@ -32,7 +30,6 @@ public interface ReportingPatientRepository extends Repository<Appointment, Long
                                       @Param("from") LocalDateTime from,
                                       @Param("to") LocalDateTime to);
 
-    /** [total, attended, cancelled, distinctDoctors] KPIs del historial del paciente. */
     @Query(value = """
             SELECT COUNT(*),
                    SUM(CASE WHEN a.flow_status = 'COMPLETED' THEN 1 ELSE 0 END),
@@ -48,7 +45,6 @@ public interface ReportingPatientRepository extends Repository<Appointment, Long
                                       @Param("from") LocalDateTime from,
                                       @Param("to") LocalDateTime to);
 
-    /** [medication, dosage, instructions, date, isActive] recetas del paciente. */
     @Query(value = """
             SELECT pr.medication, pr.dosage, pr.instructions,
                    to_char(pr.created_at, 'YYYY-MM-DD'), pr.is_active
@@ -64,7 +60,6 @@ public interface ReportingPatientRepository extends Repository<Appointment, Long
                                  @Param("from") LocalDateTime from,
                                  @Param("to") LocalDateTime to);
 
-    /** [date, weight, bmi, blood_pressure, heart_rate] mediciones de signos vitales del paciente. */
     @Query(value = """
             SELECT to_char(COALESCE(t.measured_at, t.created_at), 'YYYY-MM-DD'),
                    t.weight, t.bmi, t.blood_pressure, t.heart_rate, t.temperature

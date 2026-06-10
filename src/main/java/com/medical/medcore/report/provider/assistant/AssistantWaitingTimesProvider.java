@@ -24,10 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Tiempos de espera = inicio de atención (started_at) − check-in (checked_in_at), tomados de
- * las transiciones de la sala de espera.
- */
 @Component
 @RequiredArgsConstructor
 public class AssistantWaitingTimesProvider extends BaseReportProvider implements ReportProvider {

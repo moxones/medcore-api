@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** "Diagnósticos Frecuentes" — acotado al médico autenticado. */
 @Component
 @RequiredArgsConstructor
 public class DoctorDiagnosesProvider extends BaseReportProvider implements ReportProvider {

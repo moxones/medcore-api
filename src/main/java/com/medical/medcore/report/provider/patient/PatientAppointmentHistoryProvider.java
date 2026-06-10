@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** "Mi Historial de Citas" — acotado al paciente autenticado. */
 @Component
 @RequiredArgsConstructor
 public class PatientAppointmentHistoryProvider extends BaseReportProvider implements ReportProvider {

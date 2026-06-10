@@ -24,10 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Ingresos por suscripciones. El monto usa {@code plans.price} como proxy (no hay historial de
- * facturación real); ARPA y MRR son estimaciones a partir de las suscripciones vigentes.
- */
 @Component
 @RequiredArgsConstructor
 public class PlatformSubscriptionRevenueProvider extends BaseReportProvider implements ReportProvider {

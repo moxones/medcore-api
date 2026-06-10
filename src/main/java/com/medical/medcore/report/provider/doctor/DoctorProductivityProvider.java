@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** "Mi Productividad" — acotado al médico autenticado. */
 @Component
 @RequiredArgsConstructor
 public class DoctorProductivityProvider extends BaseReportProvider implements ReportProvider {

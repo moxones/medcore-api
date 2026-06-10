@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** "Mis Recetas" — acotado al paciente autenticado. */
 @Component
 @RequiredArgsConstructor
 public class PatientPrescriptionsProvider extends BaseReportProvider implements ReportProvider {

@@ -18,10 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-/**
- * Reportería: vista interactiva (JSON) y descarga (PDF/XLSX). El tenant, el rol y las sucursales
- * se derivan del token en servidor; la autorización por reporte la aplica {@link ReportService}.
- */
 @RestController
 @RequestMapping("/reports")
 @RequiredArgsConstructor

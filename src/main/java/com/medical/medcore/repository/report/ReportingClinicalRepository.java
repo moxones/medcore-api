@@ -8,13 +8,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Agregaciones clínicas (diagnósticos, recetas, órdenes) para reportería. El alcance del médico
- * se resuelve por la cita asociada a la entrada clínica ({@code appointments.doctor_id}).
- */
 public interface ReportingClinicalRepository extends Repository<MedicalEntryDiagnosis, Long> {
 
-    /** [code, description, count] top diagnósticos CIE-10 de un médico. */
     @Query(value = """
             SELECT COALESCE(c.code, '—'), COALESCE(c.description, md.description), COUNT(*)
             FROM medical_entry_diagnoses md
@@ -31,7 +26,6 @@ public interface ReportingClinicalRepository extends Repository<MedicalEntryDiag
                                          @Param("from") LocalDateTime from,
                                          @Param("to") LocalDateTime to);
 
-    /** [total, distinctCie10] KPIs de diagnósticos de un médico. */
     @Query(value = """
             SELECT COUNT(*), COUNT(DISTINCT md.cie10_id)
             FROM medical_entry_diagnoses md
@@ -45,7 +39,6 @@ public interface ReportingClinicalRepository extends Repository<MedicalEntryDiag
                                              @Param("from") LocalDateTime from,
                                              @Param("to") LocalDateTime to);
 
-    /** [medication, count] medicamentos más prescritos por un médico. */
     @Query(value = """
             SELECT pr.medication, COUNT(*)
             FROM prescriptions pr
@@ -60,7 +53,6 @@ public interface ReportingClinicalRepository extends Repository<MedicalEntryDiag
                                            @Param("from") LocalDateTime from,
                                            @Param("to") LocalDateTime to);
 
-    /** [totalPrescriptions, distinctMedications] KPIs de recetas de un médico. */
     @Query(value = """
             SELECT COUNT(*), COUNT(DISTINCT pr.medication)
             FROM prescriptions pr
@@ -74,7 +66,6 @@ public interface ReportingClinicalRepository extends Repository<MedicalEntryDiag
                                                 @Param("from") LocalDateTime from,
                                                 @Param("to") LocalDateTime to);
 
-    /** [orderType, count] órdenes médicas por tipo de un médico. */
     @Query(value = """
             SELECT mo.order_type, COUNT(*)
             FROM medical_orders mo

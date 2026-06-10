@@ -9,13 +9,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Agregaciones de cobros para reportería (SQL nativo). El monto cobrado considera pagos
- * {@code status = 'COMPLETED'}; el pendiente, el resto.
- */
 public interface ReportingPaymentRepository extends Repository<Payment, Long> {
 
-    /** [method, operations, total] cobros COMPLETED por método de pago. */
     @Query(value = """
             SELECT COALESCE(p.payment_method, 'Sin método'), COUNT(*), SUM(p.amount)
             FROM payments p
@@ -32,7 +27,6 @@ public interface ReportingPaymentRepository extends Repository<Payment, Long> {
                             @Param("applyBranch") boolean applyBranch,
                             @Param("branchIds") List<Long> branchIds);
 
-    /** [day, operations, total] cobros COMPLETED por día. */
     @Query(value = """
             SELECT to_char(p.payment_date, 'YYYY-MM-DD'), COUNT(*), SUM(p.amount)
             FROM payments p
@@ -48,7 +42,6 @@ public interface ReportingPaymentRepository extends Repository<Payment, Long> {
                          @Param("applyBranch") boolean applyBranch,
                          @Param("branchIds") List<Long> branchIds);
 
-    /** [branchName, total] ingresos COMPLETED por sucursal. */
     @Query(value = """
             SELECT b.name, SUM(p.amount)
             FROM payments p
@@ -65,7 +58,6 @@ public interface ReportingPaymentRepository extends Repository<Payment, Long> {
                             @Param("applyBranch") boolean applyBranch,
                             @Param("branchIds") List<Long> branchIds);
 
-    /** Total cobrado (COMPLETED) en el rango. */
     @Query(value = """
             SELECT COALESCE(SUM(p.amount), 0)
             FROM payments p
@@ -80,7 +72,6 @@ public interface ReportingPaymentRepository extends Repository<Payment, Long> {
                               @Param("applyBranch") boolean applyBranch,
                               @Param("branchIds") List<Long> branchIds);
 
-    /** Nº de operaciones COMPLETED en el rango. */
     @Query(value = """
             SELECT COUNT(*)
             FROM payments p
@@ -95,7 +86,6 @@ public interface ReportingPaymentRepository extends Repository<Payment, Long> {
                         @Param("applyBranch") boolean applyBranch,
                         @Param("branchIds") List<Long> branchIds);
 
-    /** Monto pendiente de cobro (pagos no COMPLETED) en el rango. */
     @Query(value = """
             SELECT COALESCE(SUM(p.amount), 0)
             FROM payments p
@@ -110,7 +100,6 @@ public interface ReportingPaymentRepository extends Repository<Payment, Long> {
                             @Param("applyBranch") boolean applyBranch,
                             @Param("branchIds") List<Long> branchIds);
 
-    /** [doctorId, revenue] ingresos COMPLETED atribuidos al médico de la cita. */
     @Query(value = """
             SELECT a.doctor_id, SUM(p.amount)
             FROM payments p

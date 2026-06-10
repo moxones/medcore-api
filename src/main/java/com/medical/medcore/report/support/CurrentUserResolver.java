@@ -9,10 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-/**
- * Resuelve el médico/paciente correspondiente al usuario autenticado, para acotar los reportes
- * de rol DOCTOR/PATIENT estrictamente a sus propios datos (se ignora cualquier id del cliente).
- */
 @Component
 @RequiredArgsConstructor
 public class CurrentUserResolver {

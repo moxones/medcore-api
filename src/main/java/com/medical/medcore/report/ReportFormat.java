@@ -1,6 +1,5 @@
 package com.medical.medcore.report;
 
-/** Formato de exportación de un reporte. */
 public enum ReportFormat {
     PDF("application/pdf", "pdf"),
     XLSX("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx");

@@ -27,11 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Ocupación de agenda: estima la capacidad por sucursal a partir de los horarios médicos
- * (slots/día × ocurrencias del día de la semana en el rango) y la compara con las citas
- * efectivamente ocupadas. Es una estimación (best-effort).
- */
 @Component
 @RequiredArgsConstructor
 public class ClinicBranchUtilizationProvider extends BaseReportProvider implements ReportProvider {
@@ -54,7 +49,6 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
         BranchFilter bf = resolveBranches(q, ctx);
         Long t = ctx.tenantId();
 
-        // Capacidad estimada por sucursal (en slots).
         Map<Long, String> branchNames = new LinkedHashMap<>();
         Map<Long, Long> capacity = new LinkedHashMap<>();
         for (Object[] s : schedules.activeSchedules(t, q.from(), q.to(), bf.apply(), bf.branchIds())) {
@@ -66,7 +60,6 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
             capacity.merge(branchId, slotsPerDay * occurrences, Long::sum);
         }
 
-        // Ocupación real por sucursal.
         Map<Long, Long> occupied = new LinkedHashMap<>();
         for (Object[] r : appointments.occupiedByBranch(t, q.fromDateTime(), q.toDateTimeExclusive(), bf.apply(), bf.branchIds())) {
             long branchId = asLong(r[0]);
@@ -130,7 +123,6 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
         return slots * Math.max(1, maxPatientsPerSlot);
     }
 
-    /** Cuenta los días dentro de [from, to] cuyo día de la semana coincide con {@code dayOfWeek}. */
     private long weekdayOccurrences(LocalDate from, LocalDate to, int dayOfWeek) {
         long count = 0;
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
@@ -141,9 +133,8 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
         return count;
     }
 
-    /** Tolera convenciones 1-7 (ISO: lun=1..dom=7) y 0-6 (dom=0..sáb=6). */
     private boolean matchesDayOfWeek(LocalDate date, int dayOfWeek) {
-        int iso = date.getDayOfWeek().getValue(); // 1=lunes .. 7=domingo
+        int iso = date.getDayOfWeek().getValue();
         if (dayOfWeek >= 1 && dayOfWeek <= 7) {
             return iso == dayOfWeek;
         }

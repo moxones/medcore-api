@@ -8,10 +8,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-/**
- * Formato de valores para el sobre del reporte (locale es-PE). Los KPI {@code value},
- * {@code bar.display} y {@code list.value} se envían ya formateados como string.
- */
 public final class ReportFormatter {
 
     private static final Locale PE = Locale.forLanguageTag("es-PE");
@@ -21,7 +17,6 @@ public final class ReportFormatter {
     private ReportFormatter() {
     }
 
-    /** "S/ 12,450" (separador de miles con coma, sin decimales si es entero). */
     public static String currency(BigDecimal amount) {
         BigDecimal value = amount != null ? amount : BigDecimal.ZERO;
         DecimalFormat df = new DecimalFormat("#,##0.##", SYMBOLS);
@@ -32,7 +27,6 @@ public final class ReportFormatter {
         return currency(BigDecimal.valueOf(amount));
     }
 
-    /** "1,204" (miles con coma). */
     public static String number(long value) {
         DecimalFormat df = new DecimalFormat("#,##0", SYMBOLS);
         return df.format(value);
@@ -43,19 +37,16 @@ public final class ReportFormatter {
         return df.format(value);
     }
 
-    /** "87%" (sin decimales). */
     public static String percent(double ratio0to100) {
         DecimalFormat df = new DecimalFormat("#,##0", SYMBOLS);
         return df.format(ratio0to100) + "%";
     }
 
-    /** "87.5%" con un decimal. */
     public static String percent1(double ratio0to100) {
         DecimalFormat df = new DecimalFormat("#,##0.0", SYMBOLS);
         return df.format(ratio0to100) + "%";
     }
 
-    /** Porcentaje seguro: parte / total * 100, 0 si total == 0. */
     public static double ratio(long part, long total) {
         if (total == 0) {
             return 0d;

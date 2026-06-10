@@ -3,10 +3,6 @@ package com.medical.medcore.dto.response.report;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-/**
- * Sección de detalle de un reporte. El campo discriminador es {@code type}
- * ("table" | "bars" | "list"); el front renderiza según ese valor.
- */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = TableSection.class, name = "table"),

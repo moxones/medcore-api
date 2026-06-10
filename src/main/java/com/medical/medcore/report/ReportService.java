@@ -18,11 +18,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Punto único de entrada de la reportería: resuelve el provider por key, aplica autorización
- * por rol, normaliza/valida el rango de fechas y delega la generación. También exporta el sobre
- * resultante a PDF/XLSX reutilizando la misma generación.
- */
 @Service
 public class ReportService {
 
@@ -81,7 +76,6 @@ public class ReportService {
         return new ReportContext(tenantId, userId, roles, branchIds);
     }
 
-    /** Rango por defecto = mes actual si faltan ambos; valida from <= to. */
     private ReportQuery normalize(ReportQuery q) {
         LocalDate from = q.from();
         LocalDate to = q.to();

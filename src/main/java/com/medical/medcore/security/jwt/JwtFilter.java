@@ -1,7 +1,9 @@
 package com.medical.medcore.security.jwt;
 
+import com.medical.medcore.types.ApiResponse;
 import com.medical.medcore.util.TenantContext;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 
 import jakarta.servlet.FilterChain;
@@ -26,9 +28,11 @@ import java.util.stream.Collectors;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
+    private final ObjectMapper objectMapper;
 
-    public JwtFilter(JwtProvider jwtProvider) {
+    public JwtFilter(JwtProvider jwtProvider, ObjectMapper objectMapper) {
         this.jwtProvider = jwtProvider;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -44,10 +48,24 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 String token = header.substring(7);
 
-                Claims claims = jwtProvider.extractClaims(token);
+                Claims claims;
+                try {
+                    claims = jwtProvider.extractClaims(token);
+                } catch (RuntimeException e) {
+                    // Token expirado/inválido: responder 401 JSON aquí mismo.
+                    // Si se propaga la excepción desde un Filter, el ControllerAdvice
+                    // no aplica y el cliente recibe un 500 en lugar de 401.
+                    writeUnauthorized(response, e.getMessage());
+                    return;
+                }
 
                 Long userId = Long.valueOf(claims.getSubject());
-                Long tenantId = ((Number) claims.get("tenantId")).longValue();
+                Number tenantClaim = (Number) claims.get("tenantId");
+                if (tenantClaim == null) {
+                    writeUnauthorized(response, "El token de acceso es inválido");
+                    return;
+                }
+                Long tenantId = tenantClaim.longValue();
 
                 List<String> roles = extractRoles(claims.get("roles"));
                 List<Long> branchIds = extractBranchIds(claims.get("branchIds"));
@@ -72,6 +90,14 @@ public class JwtFilter extends OncePerRequestFilter {
             MDC.clear();
             SecurityContextHolder.clearContext();
         }
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getOutputStream(),
+                new ApiResponse<>(false, null, message != null ? message : "No autenticado"));
     }
 
     private List<String> extractRoles(Object rolesClaim) {

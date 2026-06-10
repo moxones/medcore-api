@@ -28,7 +28,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map;
 
-/** Exportador genérico {@link ReportResult} → PDF (OpenPDF). Renderiza cualquier reporte. */
 @Component
 public class PdfReportExporter implements ReportExporter {
 
@@ -102,7 +101,6 @@ public class PdfReportExporter implements ReportExporter {
             }
             grid.addCell(cell);
         }
-        // Rellena la última fila para que la cuadrícula quede pareja.
         int remainder = kpis.size() % cols;
         if (remainder != 0) {
             for (int i = 0; i < cols - remainder; i++) {
