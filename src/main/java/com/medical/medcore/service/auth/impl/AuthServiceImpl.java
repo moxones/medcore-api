@@ -15,6 +15,7 @@ import com.medical.medcore.service.auth.RefreshTokenService;
 import com.medical.medcore.util.TenantContext;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
@@ -62,6 +63,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
 
         Long tenantId = TenantContext.requireTenantId();
@@ -202,6 +204,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public AuthResponse refresh(String refreshTokenRaw) {
 
         RefreshToken token = refreshTokenService.validate(refreshTokenRaw);
@@ -233,7 +236,9 @@ public class AuthServiceImpl implements AuthService {
                 branchIds
         );
 
-        refreshTokenService.revoke(token);
+        // Rotación con ventana de gracia: si el cliente dispara dos refresh
+        // concurrentes, el segundo no debe expulsar la sesión.
+        refreshTokenService.revokeWithGrace(token);
 
         String newRefresh = refreshTokenService.create(
                 user.getId(),

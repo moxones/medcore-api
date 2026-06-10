@@ -18,7 +18,29 @@
       "PowerShell($pg = Get-ChildItem \"C:\\\\Program Files\\\\PostgreSQL\" -ErrorAction SilentlyContinue; if \\($pg\\) { foreach \\($d in $pg\\) { $p = Join-Path $d.FullName \"bin\\\\psql.exe\"; if \\(Test-Path $p\\) { Write-Output $p } } } else { Write-Output \"no PG dir\" }; Get-Command psql -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)",
       "PowerShell(& \"C:\\\\fuentes\\\\Personal\\\\medcore-api\\\\mvnw.cmd\" -q -f \"C:\\\\fuentes\\\\Personal\\\\medcore-api\\\\pom.xml\" compile 2>&1)",
       "Bash(./mvnw -q compile -o)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "PowerShell(.\\\\mvnw.cmd -q compile -DskipTests 2>&1)",
+      "PowerShell(.\\\\mvnw.cmd -q test -Dtest=UserMapperTest 2>&1)",
+      "PowerShell(gh run list --limit 5)",
+      "PowerShell(curl.exe -s -o $null -w \"branches: %{http_code}`n\" \"https://clinica-perrito.pemedcore.xyz/api/branches?page=0&size=100\")",
+      "PowerShell(curl.exe -s -o $null -w \"patients: %{http_code}`n\" \"https://clinica-perrito.pemedcore.xyz/api/patients?page=0&size=15\")",
+      "PowerShell(curl.exe -s -o $null -w \"appointments: %{http_code}`n\" \"https://clinica-perrito.pemedcore.xyz/api/appointments?date=2026-06-10&size=100&page=0\")",
+      "PowerShell(curl.exe -s -o $null -w \"doctors: %{http_code}`n\" \"https://clinica-perrito.pemedcore.xyz/api/doctors?page=0&size=10\")",
+      "PowerShell(Get-Content ~/.ssh/known_hosts | ForEach-Object { \\($_ -split ' '\\)[0] } | Sort-Object -Unique)",
+      "PowerShell(ssh -o BatchMode=yes -o ConnectTimeout=10 root@pemedcore.xyz \"systemctl is-active medcore.service; ls -la /opt/medcore/current 2>/dev/null; ls -t /opt/medcore/releases/ | head -5\")",
+      "PowerShell(ssh -o BatchMode=yes -o ConnectTimeout=10 root@67.205.138.174 \"systemctl is-active medcore.service; ls -la /opt/medcore/current 2>/dev/null; ls -t /opt/medcore/releases/ | head -5\")",
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 5432 -InformationLevel Quiet -WarningAction SilentlyContinue)",
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 8080 -InformationLevel Quiet -WarningAction SilentlyContinue)",
+      "PowerShell(.\\\\mvnw.cmd spring-boot:run -q \"-Dspring-boot.run.jvmArguments=-Dlogging.level.org.hibernate.SQL=info\")",
+      "PowerShell($env:PGPASSWORD='imvfbh5cs'; psql -h localhost -U postgres -d health_system_db -t -c \"SELECT t.subdomain, u.email FROM users u JOIN tenants t ON t.id = u.tenant_id LIMIT 20\" 2>$null)",
+      "PowerShell($env:PGPASSWORD='imvfbh5cs'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\" -h localhost -U postgres -d health_system_db -t -A -c \"SELECT t.subdomain, u.email FROM users u JOIN tenants t ON t.id = u.tenant_id ORDER BY t.subdomain LIMIT 25\")",
+      "PowerShell(java -cp \"C:\\\\Users\\\\jarri\\\\.m2\\\\repository\\\\org\\\\springframework\\\\security\\\\spring-security-crypto\\\\6.5.0\\\\spring-security-crypto-6.5.0.jar\" \"C:\\\\Users\\\\jarri\\\\AppData\\\\Local\\\\Temp\\\\GenHash.java\")",
+      "PowerShell($env:PGPASSWORD='imvfbh5cs'; $psql = \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\"; & $psql -h localhost -U postgres -d health_system_db -t -A -c \"SELECT id, password FROM users WHERE email='admin@perritos.com'\")",
+      "PowerShell($env:PGPASSWORD='imvfbh5cs'; $psql = \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe\"; & $psql -h localhost -U postgres -d health_system_db -c \"UPDATE users SET password='`$2a`$10`$24vILCBE85R7kg2C0cyG6eL4b7RxqupsgEtCvPGAx4iNTH.uGuYwe' WHERE id=5\")",
+      "PowerShell(Set-Content -Path \"$env:TEMP\\\\login.json\" -Value '{\"email\":\"admin@perritos.com\",\"password\":\"ClaudeTest123!\"}' -Encoding ascii -NoNewline; curl.exe -s -X POST \"http://localhost:8080/api/auth/login\" -H \"Content-Type: application/json\" -H \"X-Tenant-ID: clinica-perrito\" --data \"@$env:TEMP\\\\login.json\")",
+      "PowerShell($t = \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwidGVuYW50SWQiOjIsInJvbGVzIjpbIkNMSU5JQ19BRE1JTiJdLCJicmFuY2hJZHMiOltdLCJpYXQiOjE3ODEwNjY1NjgsImV4cCI6MTc4MTA2NzQ2OH0.M2Az9TEge47rROmKRyQWRsjeeLSM6h0ffFU3ClbZO1E\"; \"=== branches ===\"; curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer $t\" -H \"X-Tenant-ID: clinica-perrito\" \"http://localhost:8080/api/branches?page=0&size=100\" | Select-Object -First 5; \"=== patients ===\"; curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer $t\" -H \"X-Tenant-ID: clinica-perrito\" \"http://localhost:8080/api/patients?page=0&size=15\" | ForEach-Object { if \\($_.Length -gt 300\\) { $_.Substring\\(0,300\\) } else { $_ } }; \"=== appointments ===\"; curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer $t\" -H \"X-Tenant-ID: clinica-perrito\" \"http://localhost:8080/api/appointments?date=2026-06-10&size=100&page=0\" | ForEach-Object { if \\($_.Length -gt 300\\) { $_.Substring\\(0,300\\) } else { $_ } })",
+      "PowerShell(Test-NetConnection -ComputerName 67.205.138.174 -Port 5432 -InformationLevel Quiet -WarningAction SilentlyContinue)",
+      "PowerShell(curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer garbage.token.here\" \"https://clinica-perrito.pemedcore.xyz/api/branches?page=0&size=1\")"
     ]
   }
 }

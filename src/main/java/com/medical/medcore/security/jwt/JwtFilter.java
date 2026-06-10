@@ -22,10 +22,25 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
+    /**
+     * Endpoints públicos de autenticación donde NO debe evaluarse el header
+     * Authorization: el cliente suele adjuntar su access token vencido al
+     * llamar /auth/refresh y, si el filtro lo procesa, responde 401 antes de
+     * que el refresh llegue al controller. /auth/me sí requiere el JWT.
+     */
+    private static final Set<String> PUBLIC_AUTH_PATHS = Set.of(
+            "/auth/login", "/auth/register", "/auth/refresh", "/auth/logout");
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return PUBLIC_AUTH_PATHS.contains(request.getServletPath());
+    }
 
     private final JwtProvider jwtProvider;
     private final ObjectMapper objectMapper;
@@ -55,6 +70,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     // Token expirado/inválido: responder 401 JSON aquí mismo.
                     // Si se propaga la excepción desde un Filter, el ControllerAdvice
                     // no aplica y el cliente recibe un 500 en lugar de 401.
+                    response.setHeader("WWW-Authenticate", "Bearer error=\"invalid_token\"");
                     writeUnauthorized(response, e.getMessage());
                     return;
                 }
