@@ -16,7 +16,8 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
 
     Page<Patient> findByTenantId(Long tenantId, Pageable pageable);
 
-    @Query("SELECT p FROM Patient p JOIN FETCH p.person WHERE p.tenantId = :tenantId")
+    @Query(value = "SELECT p FROM Patient p JOIN FETCH p.person WHERE p.tenantId = :tenantId",
+           countQuery = "SELECT COUNT(p) FROM Patient p WHERE p.tenantId = :tenantId")
     Page<Patient> findByTenantIdWithPerson(Long tenantId, Pageable pageable);
 
     Optional<Patient> findByIdAndTenantId(Long id, Long tenantId);
