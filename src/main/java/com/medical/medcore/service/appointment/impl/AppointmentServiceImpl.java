@@ -664,6 +664,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     private Long resolveBookingPatientId(Long requestedPatientId, Long tenantId) {
         if (SecurityUtils.isStaff()) {
+            if (requestedPatientId == null) {
+                throw new BadRequestException("patientId es requerido");
+            }
             return requestedPatientId;
         }
         return resolveCurrentPatient(tenantId).getId();

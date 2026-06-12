@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Future;
 import java.time.LocalDateTime;
 
 public record CreateAppointmentRequest(
-        @NotNull Long patientId,
+        Long patientId,
         @NotNull Long doctorId,
         @NotNull Long branchId,
         @NotNull @Future LocalDateTime scheduledAt,

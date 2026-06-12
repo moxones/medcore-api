@@ -40,7 +40,11 @@
       "PowerShell(Set-Content -Path \"$env:TEMP\\\\login.json\" -Value '{\"email\":\"admin@perritos.com\",\"password\":\"ClaudeTest123!\"}' -Encoding ascii -NoNewline; curl.exe -s -X POST \"http://localhost:8080/api/auth/login\" -H \"Content-Type: application/json\" -H \"X-Tenant-ID: clinica-perrito\" --data \"@$env:TEMP\\\\login.json\")",
       "PowerShell($t = \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1IiwidGVuYW50SWQiOjIsInJvbGVzIjpbIkNMSU5JQ19BRE1JTiJdLCJicmFuY2hJZHMiOltdLCJpYXQiOjE3ODEwNjY1NjgsImV4cCI6MTc4MTA2NzQ2OH0.M2Az9TEge47rROmKRyQWRsjeeLSM6h0ffFU3ClbZO1E\"; \"=== branches ===\"; curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer $t\" -H \"X-Tenant-ID: clinica-perrito\" \"http://localhost:8080/api/branches?page=0&size=100\" | Select-Object -First 5; \"=== patients ===\"; curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer $t\" -H \"X-Tenant-ID: clinica-perrito\" \"http://localhost:8080/api/patients?page=0&size=15\" | ForEach-Object { if \\($_.Length -gt 300\\) { $_.Substring\\(0,300\\) } else { $_ } }; \"=== appointments ===\"; curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer $t\" -H \"X-Tenant-ID: clinica-perrito\" \"http://localhost:8080/api/appointments?date=2026-06-10&size=100&page=0\" | ForEach-Object { if \\($_.Length -gt 300\\) { $_.Substring\\(0,300\\) } else { $_ } })",
       "PowerShell(Test-NetConnection -ComputerName 67.205.138.174 -Port 5432 -InformationLevel Quiet -WarningAction SilentlyContinue)",
-      "PowerShell(curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer garbage.token.here\" \"https://clinica-perrito.pemedcore.xyz/api/branches?page=0&size=1\")"
+      "PowerShell(curl.exe -s -w \"`nHTTP %{http_code}`n\" -H \"Authorization: Bearer garbage.token.here\" \"https://clinica-perrito.pemedcore.xyz/api/branches?page=0&size=1\")",
+      "Bash(sshpass -p 'Imvfbh5cs@vII' ssh -o StrictHostKeyChecking=no root@67.205.138.174 \"echo connected && systemctl show medcore.service --property=Environment 2>/dev/null | head -5 || cat /etc/systemd/system/medcore.service 2>/dev/null | grep -E 'Env|DB|DATABASE'\")",
+      "PowerShell(python --version 2>&1)",
+      "PowerShell(python -c \"import paramiko; print\\('paramiko ok'\\)\" 2>&1)",
+      "PowerShell(pip install paramiko --quiet 2>&1)"
     ]
   }
 }
