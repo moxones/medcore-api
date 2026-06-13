@@ -44,7 +44,8 @@
       "Bash(sshpass -p 'Imvfbh5cs@vII' ssh -o StrictHostKeyChecking=no root@67.205.138.174 \"echo connected && systemctl show medcore.service --property=Environment 2>/dev/null | head -5 || cat /etc/systemd/system/medcore.service 2>/dev/null | grep -E 'Env|DB|DATABASE'\")",
       "PowerShell(python --version 2>&1)",
       "PowerShell(python -c \"import paramiko; print\\('paramiko ok'\\)\" 2>&1)",
-      "PowerShell(pip install paramiko --quiet 2>&1)"
+      "PowerShell(pip install paramiko --quiet 2>&1)",
+      "PowerShell(.\\\\mvnw.cmd -q -o compile 2>&1)"
     ]
   }
 }
