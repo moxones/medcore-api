@@ -36,4 +36,6 @@ public interface AppointmentService {
     AppointmentResponse updateFlowStatus(Long id, UpdateAppointmentFlowRequest request);
 
     void cancel(Long id, CancelAppointmentRequest request);
+
+    List<AppointmentResponse> findPendingByDoctor(Long doctorId);
 }

@@ -43,8 +43,8 @@ public class PatientSearchRepositoryImpl implements PatientSearchRepository {
                 LEFT JOIN User u ON u.person.id = per.id AND u.tenantId = p.tenantId
                 WHERE p.tenantId = :tenantId
                 AND (
-                    LOWER(per.firstName) LIKE :term OR
-                    LOWER(per.lastName) LIKE :term OR
+                    LOWER(CAST(per.firstName AS String)) LIKE :term OR
+                    LOWER(CAST(per.lastName AS String)) LIKE :term OR
                     LOWER(per.contactEmail) LIKE :term OR
                     LOWER(u.email) LIKE :term
                 )

@@ -2,14 +2,17 @@ package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.request.TriageRequest;
 import com.medical.medcore.dto.response.TriageResponse;
+import com.medical.medcore.dto.response.TriageSummaryResponse;
 import com.medical.medcore.security.authorization.annotation.RequireStaff;
 import com.medical.medcore.service.triage.TriageService;
 import com.medical.medcore.types.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -25,6 +28,16 @@ public class TriageController {
             @Valid @RequestBody TriageRequest request) {
         return ResponseEntity.ok(
                 new ApiResponse<>(true, triageService.create(request), "Toma de triaje registrada")
+        );
+    }
+
+    @GetMapping("/today")
+    public ResponseEntity<ApiResponse<List<TriageSummaryResponse>>> today(
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, triageService.getDaySummary(doctorId, date), "Triajes del día")
         );
     }
 

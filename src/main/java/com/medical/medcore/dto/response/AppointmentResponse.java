@@ -19,15 +19,14 @@ public record AppointmentResponse(
         String reason,
         Integer durationMinutes,
         String flowStatus,
+        String careStage,
+        Boolean triageCompleted,
         LocalDateTime createdAt,
         String bookingSource,
-        // Timestamps por transición del flujo (ISO 8601, nullables).
         LocalDateTime checkedInAt,
         LocalDateTime calledAt,
         LocalDateTime startedAt,
         LocalDateTime finishedAt,
         LocalDateTime completedAt,
-        // Monto a cobrar para la columna "Por cobrar". Null hasta que exista
-        // una fuente de precio por tipo de cita.
         BigDecimal amount
 ) {}

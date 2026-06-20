@@ -38,6 +38,10 @@ spring:
   jackson:
     time-zone: America/Lima
 
+booking:
+  lead-time-minutes: ${BOOKING_LEAD_TIME_MINUTES:15}
+  time-zone: ${BOOKING_TIME_ZONE:America/Lima}
+
 security:
   jwt:
     # En producción DEBE definirse JWT_SECRET (>= 32 caracteres / 256 bits).

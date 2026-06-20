@@ -41,8 +41,8 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             LEFT JOIN User u ON u.person.id = per.id AND u.tenantId = p.tenantId
             WHERE p.tenantId = :tenantId
             AND (
-                LOWER(per.firstName) LIKE CONCAT('%', :term, '%') OR
-                LOWER(per.lastName) LIKE CONCAT('%', :term, '%') OR
+                LOWER(CAST(per.firstName AS String)) LIKE CONCAT('%', :term, '%') OR
+                LOWER(CAST(per.lastName AS String)) LIKE CONCAT('%', :term, '%') OR
                 LOWER(per.contactEmail) LIKE CONCAT('%', :term, '%') OR
                 LOWER(u.email) LIKE CONCAT('%', :term, '%')
             )

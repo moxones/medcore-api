@@ -1,6 +1,7 @@
 package com.medical.medcore.controller;
 
 import com.medical.medcore.dto.request.CreateSuperAdminUserRequest;
+import com.medical.medcore.dto.request.SetPasswordRequest;
 import com.medical.medcore.dto.request.UpdateUserRequest;
 import com.medical.medcore.dto.response.UserResponse;
 import com.medical.medcore.security.authorization.annotation.RequireSuperAdmin;
@@ -49,6 +50,17 @@ public class SuperAdminUserController {
             @Valid @RequestBody UpdateUserRequest request) {
         return ResponseEntity.ok(
                 new ApiResponse<>(true, userService.updateForSuperAdmin(id, request), "Usuario actualizado")
+        );
+    }
+
+    @RequireSuperAdmin
+    @PutMapping("/{id}/password")
+    public ResponseEntity<ApiResponse<Void>> setPassword(
+            @PathVariable Long id,
+            @Valid @RequestBody SetPasswordRequest request) {
+        userService.setPasswordForSuperAdmin(id, request);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, null, "Password actualizado")
         );
     }
 }

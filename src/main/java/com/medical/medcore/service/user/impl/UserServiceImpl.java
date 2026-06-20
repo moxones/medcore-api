@@ -288,6 +288,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public void setPasswordForSuperAdmin(Long id, SetPasswordRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        refreshTokenService.revokeAllByUserIdAndTenantId(id, user.getTenantId());
+    }
+
+    @Override
     public void updateStatus(Long id, UpdateUserStatusRequest request) {
 
         Long tenantId = TenantContext.getTenantId();

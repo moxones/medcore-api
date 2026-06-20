@@ -44,6 +44,13 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConflict(ConflictException ex) {
+        log.error("ConflictException: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiResponse<>(false, null, ex.getMessage(), ex.getCode()));
+    }
+
     @ExceptionHandler(UnprocessableEntityException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnprocessable(UnprocessableEntityException ex) {
         log.error("UnprocessableEntityException: {}", ex.getMessage());

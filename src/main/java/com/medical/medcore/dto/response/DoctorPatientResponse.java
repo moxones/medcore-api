@@ -1,22 +1,26 @@
 package com.medical.medcore.dto.response;
 
-import java.time.LocalDate;
+import lombok.Builder;
+import lombok.Getter;
+
 import java.time.LocalDateTime;
 
-public record DoctorPatientResponse(
-        Long patientId,
-        String fullName,
-        String initials,
-        String gender,
-        LocalDate birthDate,
-        Integer age,
-        String phone,
-        String email,
-        String bloodType,
-        long allergyCount,
-        long conditionCount,
-        long totalVisits,
-        LocalDateTime lastVisitAt,
-        String lastReason,
-        LocalDateTime nextAppointmentAt
-) {}
+@Getter
+@Builder
+public class DoctorPatientResponse {
+    private Long patientId;
+    private String fullName;
+    private String initials;
+    private String gender;
+    private String birthDate;
+    private Integer age;
+    private String phone;
+    private String email;
+    private String bloodType;
+    private Integer allergyCount;
+    private Integer conditionCount;
+    private Long totalVisits;
+    private LocalDateTime lastVisitAt;
+    private String lastReason;
+    private LocalDateTime nextAppointmentAt;
+}

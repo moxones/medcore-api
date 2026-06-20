@@ -5,10 +5,18 @@ import com.medical.medcore.config.exception.BadRequestException;
 import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.TriageRequest;
 import com.medical.medcore.dto.response.TriageResponse;
+import com.medical.medcore.dto.response.TriageSummaryResponse;
 import com.medical.medcore.entity.Appointment;
+import com.medical.medcore.entity.AppointmentType;
+import com.medical.medcore.entity.Doctor;
+import com.medical.medcore.entity.Patient;
+import com.medical.medcore.entity.Person;
 import com.medical.medcore.entity.Triage;
+import com.medical.medcore.entity.User;
 import com.medical.medcore.repository.AppointmentRepository;
+import com.medical.medcore.repository.AppointmentTypeRepository;
 import com.medical.medcore.repository.TriageRepository;
+import com.medical.medcore.repository.UserRepository;
 import com.medical.medcore.service.triage.TriageService;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +40,8 @@ public class TriageServiceImpl implements TriageService {
 
     private final TriageRepository triageRepository;
     private final AppointmentRepository appointmentRepository;
+    private final AppointmentTypeRepository appointmentTypeRepository;
+    private final UserRepository userRepository;
     private final ClinicalAuditContext clinicalAuditContext;
 
     @Override
@@ -102,6 +118,97 @@ public class TriageServiceImpl implements TriageService {
             throw new AccessDeniedException("No tienes acceso a este triaje");
         }
         return mapToResponse(triage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TriageSummaryResponse> getDaySummary(Long doctorId, LocalDate date) {
+        Long tenantId = TenantContext.requireTenantId();
+        LocalDate target = date != null ? date : LocalDate.now();
+        LocalDateTime start = target.atStartOfDay();
+        LocalDateTime end = target.plusDays(1).atStartOfDay();
+
+        List<Triage> triages = triageRepository.findDaySummary(tenantId, start, end, doctorId);
+
+        Map<Long, String> typeNames = appointmentTypeRepository.findAll().stream()
+                .collect(Collectors.toMap(AppointmentType::getId, AppointmentType::getName, (a, b) -> a));
+        Map<Long, String> assistantNames = resolveAssistantNames(triages, tenantId);
+
+        return triages.stream()
+                .map(t -> toSummary(t, typeNames, assistantNames))
+                .toList();
+    }
+
+    private Map<Long, String> resolveAssistantNames(List<Triage> triages, Long tenantId) {
+        List<Long> userIds = triages.stream()
+                .map(Triage::getCreatedBy)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(userIds).stream()
+                .filter(u -> tenantId.equals(u.getTenantId()))
+                .collect(Collectors.toMap(User::getId, u -> buildName(u.getPerson())));
+    }
+
+    private TriageSummaryResponse toSummary(Triage t, Map<Long, String> typeNames,
+                                            Map<Long, String> assistantNames) {
+        Appointment a = t.getAppointment();
+        Patient patient = a.getPatient();
+        Person patientPerson = patient != null ? patient.getPerson() : null;
+        Doctor doctor = a.getDoctor();
+        Person doctorPerson = doctor != null ? doctor.getPerson() : null;
+
+        LocalDate birthDate = patientPerson != null ? patientPerson.getBirthDate() : null;
+
+        return new TriageSummaryResponse(
+                t.getId(),
+                a.getId(),
+                patient != null ? patient.getId() : null,
+                buildName(patientPerson),
+                patientPerson != null ? patientPerson.getPhone() : null,
+                birthDate,
+                calculateAge(birthDate),
+                patientPerson != null ? patientPerson.getGender() : null,
+                patient != null ? patient.getBloodType() : null,
+                patient != null ? patient.getAllergies() : null,
+                patient != null ? patient.getChronicConditions() : null,
+                doctor != null ? doctor.getId() : null,
+                buildName(doctorPerson),
+                a.getAppointmentTypeId() != null ? typeNames.get(a.getAppointmentTypeId()) : null,
+                a.getScheduledAt(),
+                t.getCreatedAt(),
+                t.getPriorityLevel(),
+                t.getWeight(),
+                t.getHeight(),
+                t.getTemperature(),
+                t.getHeartRate(),
+                t.getBloodPressure(),
+                t.getOxygenSaturation(),
+                t.getRespiratoryRate(),
+                t.getPainScale(),
+                t.getNotes(),
+                t.getCreatedBy() != null ? assistantNames.get(t.getCreatedBy()) : null
+        );
+    }
+
+    private Integer calculateAge(LocalDate birthDate) {
+        if (birthDate == null || birthDate.isAfter(LocalDate.now())) {
+            return null;
+        }
+        return Period.between(birthDate, LocalDate.now()).getYears();
+    }
+
+    private String buildName(Person person) {
+        if (person == null) {
+            return null;
+        }
+        String first = person.getFirstName() != null ? person.getFirstName() : "";
+        String last = person.getLastName() != null ? person.getLastName() : "";
+        String full = (first + " " + last).trim();
+        return full.isEmpty() ? null : full;
     }
 
     private void validate(TriageRequest request) {

@@ -1,6 +1,7 @@
 package com.medical.medcore.service.appointment.impl;
 
 import com.medical.medcore.config.exception.BadRequestException;
+import com.medical.medcore.config.exception.ConflictException;
 import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.request.CancelAppointmentRequest;
 import com.medical.medcore.dto.request.CreateAppointmentRequest;
@@ -20,10 +21,14 @@ import com.medical.medcore.entity.DoctorSchedule;
 import com.medical.medcore.entity.DoctorSpecialty;
 import com.medical.medcore.entity.Patient;
 import com.medical.medcore.entity.enums.AppointmentFlowStatus;
+import com.medical.medcore.entity.enums.CareStage;
+import com.medical.medcore.entity.enums.ClinicProcess;
 import com.medical.medcore.entity.Person;
 import com.medical.medcore.entity.Specialty;
 import com.medical.medcore.entity.User;
+import com.medical.medcore.repository.TriageRepository;
 import com.medical.medcore.repository.UserRepository;
+import com.medical.medcore.service.tenant.TenantProcessConfigService;
 import com.medical.medcore.security.authorization.SecurityUtils;
 import com.medical.medcore.repository.AppointmentRepository;
 import com.medical.medcore.repository.AppointmentRescheduleRepository;
@@ -35,6 +40,7 @@ import com.medical.medcore.repository.DoctorScheduleRepository;
 import com.medical.medcore.repository.DoctorSpecialtyRepository;
 import com.medical.medcore.repository.PatientRepository;
 import com.medical.medcore.service.appointment.AppointmentService;
+import com.medical.medcore.service.appointment.BookingPolicy;
 import com.medical.medcore.types.PageableResponse;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -73,10 +79,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final BranchRepository branchRepository;
     private final AppointmentTypeRepository appointmentTypeRepository;
     private final UserRepository userRepository;
+    private final TriageRepository triageRepository;
+    private final TenantProcessConfigService processConfigService;
+    private final BookingPolicy bookingPolicy;
 
     private static final Long STATUS_SCHEDULED = 1L;
     private static final Long STATUS_CANCELLED = 4L;
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final String CODE_APPOINTMENT_NOT_TODAY = "APPOINTMENT_NOT_TODAY";
+    private static final String CODE_TRIAGE_REQUIRED = "TRIAGE_REQUIRED";
 
     // Placeholder no-existente: cuando no se aplica el filtro por sucursal, la cláusula
     // IN nunca se evalúa pero JPQL exige una lista no vacía válida.
@@ -86,6 +97,10 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Transactional
     public AppointmentResponse create(CreateAppointmentRequest request) {
         Long tenantId = TenantContext.requireTenantId();
+
+        if (!bookingPolicy.isBookable(request.scheduledAt())) {
+            throw new BadRequestException("El horario seleccionado ya no está disponible");
+        }
 
         Long effectivePatientId = resolveBookingPatientId(request.patientId(), tenantId);
 
@@ -175,7 +190,9 @@ public class AppointmentServiceImpl implements AppointmentService {
                 tenantId, doctorId, patientId, statusId, startDate, endDate, flowStatus,
                 scope.apply(), scope.ids(), pageable);
 
-        return PageableResponse.from(resultPage.map(this::mapToResponse));
+        boolean triageEnabled = isTriageEnabled();
+        return PageableResponse.from(resultPage.map(a ->
+                mapToResponse(a, triageEnabled, triageEnabled && triageRepository.existsByAppointmentId(a.getId()))));
     }
 
     @Override
@@ -188,16 +205,13 @@ public class AppointmentServiceImpl implements AppointmentService {
             return List.of();
         }
 
-        return appointmentRepository.findForCalendar(
-                        tenantId,
-                        startDate.atStartOfDay(),
-                        endDate.plusDays(1).atStartOfDay(),
-                        doctorId,
-                        scope.apply(),
-                        scope.ids())
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return mapToResponses(appointmentRepository.findForCalendar(
+                tenantId,
+                startDate.atStartOfDay(),
+                endDate.plusDays(1).atStartOfDay(),
+                doctorId,
+                scope.apply(),
+                scope.ids()));
     }
 
     @Override
@@ -211,17 +225,14 @@ public class AppointmentServiceImpl implements AppointmentService {
             return List.of();
         }
 
-        return appointmentRepository.findQueue(
-                        tenantId,
-                        target.atStartOfDay(),
-                        target.plusDays(1).atStartOfDay(),
-                        scope.apply(),
-                        scope.ids(),
-                        doctorId,
-                        STATUS_CANCELLED)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return mapToResponses(appointmentRepository.findQueue(
+                tenantId,
+                target.atStartOfDay(),
+                target.plusDays(1).atStartOfDay(),
+                scope.apply(),
+                scope.ids(),
+                doctorId,
+                STATUS_CANCELLED));
     }
 
     @Override
@@ -264,7 +275,9 @@ public class AppointmentServiceImpl implements AppointmentService {
             LocalTime end = schedule.getEndTime();
 
             while (!current.plusMinutes(slotMinutes).isAfter(end)) {
-                slots.add(new TimeSlotResponse(current, current.plusMinutes(slotMinutes), !occupiedTimes.contains(current)));
+                if (bookingPolicy.isBookable(date, current)) {
+                    slots.add(new TimeSlotResponse(current, current.plusMinutes(slotMinutes), !occupiedTimes.contains(current)));
+                }
                 current = current.plusMinutes(slotMinutes);
             }
         }
@@ -278,6 +291,10 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = getOwnedAppointment(id);
         Long tenantId = appointment.getTenantId();
         assertCanAccessAppointment(appointment, tenantId);
+
+        if (!bookingPolicy.isBookable(request.newScheduledAt())) {
+            throw new BadRequestException("El horario seleccionado ya no está disponible");
+        }
 
         // Validar que el nuevo slot no esté ocupado
         boolean slotTaken = appointmentRepository.existsByTenantIdAndDoctorIdAndScheduledAtAndStatusIdNot(
@@ -321,6 +338,19 @@ public class AppointmentServiceImpl implements AppointmentService {
                     "Transición de estado no permitida: " + current.name() + " -> " + target.name());
         }
 
+        if ((target == AppointmentFlowStatus.WAITING || target == AppointmentFlowStatus.IN_PROCESS)
+                && !bookingPolicy.isToday(appointment.getScheduledAt())) {
+            throw new ConflictException(CODE_APPOINTMENT_NOT_TODAY,
+                    "Solo se puede registrar la llegada o iniciar la atención el día de la cita ("
+                            + appointment.getScheduledAt().toLocalDate() + ").");
+        }
+
+        if (target == AppointmentFlowStatus.IN_PROCESS && isTriageEnabled()
+                && !triageRepository.existsByAppointmentId(appointment.getId())) {
+            throw new ConflictException(CODE_TRIAGE_REQUIRED,
+                    "No se puede iniciar la consulta: el paciente aún no ha completado el triaje.");
+        }
+
         // Sellar el timestamp de la transición (solo la primera vez que se entra al estado,
         // para no falsear los timers si recepción retrocede y vuelve a avanzar).
         LocalDateTime now = LocalDateTime.now();
@@ -362,6 +392,14 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setStatusId(STATUS_CANCELLED);
         appointment.setReason(request.reason());
         appointmentRepository.save(appointment);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> findPendingByDoctor(Long doctorId) {
+        Long tenantId = TenantContext.requireTenantId();
+        return mapToResponses(
+                appointmentRepository.findPendingByDoctor(tenantId, doctorId, STATUS_CANCELLED, LocalDateTime.now()));
     }
 
     @Override
@@ -478,7 +516,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     String specName = doctorSpecialtyName.getOrDefault(did, "");
 
                     while (!cur.plusMinutes(slotMin).isAfter(end)) {
-                        if (!taken.contains(cur)) {
+                        if (!taken.contains(cur) && bookingPolicy.isBookable(date, cur)) {
                             daySlots.add(new AvailabilitySlotResponse(
                                     cur.format(TIME_FMT),
                                     cur.plusMinutes(slotMin).format(TIME_FMT),
@@ -525,8 +563,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         if (specialtyById.isEmpty()) return List.of();
 
-        // Batch-load next 30 days data
-        LocalDate today = LocalDate.now();
+        LocalDate today = bookingPolicy.today();
         LocalDate horizon = today.plusDays(30);
 
         List<DoctorSchedule> allSchedules = doctorScheduleRepository
@@ -573,7 +610,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                         Set<LocalTime> taken = occupied.getOrDefault(did, Map.of()).getOrDefault(date, Set.of());
                         LocalTime cur = sched.getStartTime();
                         while (!cur.plusMinutes(slotMin).isAfter(sched.getEndTime())) {
-                            if (!taken.contains(cur)) {
+                            if (!taken.contains(cur) && bookingPolicy.isBookable(date, cur)) {
                                 nextDate = date.toString();
                                 break outer;
                             }
@@ -691,7 +728,30 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .orElseThrow(() -> new AccessDeniedException("No tienes un paciente asociado para esta operación"));
     }
 
+    private boolean isTriageEnabled() {
+        return Boolean.TRUE.equals(processConfigService.getConfig().get(ClinicProcess.TRIAGE));
+    }
+
+    private List<AppointmentResponse> mapToResponses(List<Appointment> appointments) {
+        if (appointments.isEmpty()) {
+            return List.of();
+        }
+        boolean triageEnabled = isTriageEnabled();
+        Set<Long> triagedIds = triageEnabled
+                ? new HashSet<>(triageRepository.findAppointmentIdsWithTriage(
+                        appointments.stream().map(Appointment::getId).collect(Collectors.toList())))
+                : Set.of();
+        return appointments.stream()
+                .map(a -> mapToResponse(a, triageEnabled, triagedIds.contains(a.getId())))
+                .collect(Collectors.toList());
+    }
+
     private AppointmentResponse mapToResponse(Appointment a) {
+        boolean triageEnabled = isTriageEnabled();
+        return mapToResponse(a, triageEnabled, triageEnabled && triageRepository.existsByAppointmentId(a.getId()));
+    }
+
+    private AppointmentResponse mapToResponse(Appointment a, boolean triageEnabled, boolean triageCompleted) {
         Patient patient = a.getPatient();
         Person patientPerson = patient != null ? patient.getPerson() : null;
 
@@ -699,6 +759,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         Person doctorPerson = doctor != null ? doctor.getPerson() : null;
 
         Branch branch = a.getBranch();
+
+        CareStage careStage = CareStage.resolve(
+                AppointmentFlowStatus.from(a.getFlowStatus()), triageEnabled, triageCompleted);
 
         return new AppointmentResponse(
                 a.getId(),
@@ -716,6 +779,8 @@ public class AppointmentServiceImpl implements AppointmentService {
                 a.getReason(),
                 a.getDurationMinutes(),
                 a.getFlowStatus(),
+                careStage.name(),
+                triageEnabled ? triageCompleted : null,
                 a.getCreatedAt(),
                 a.getBookingSource() != null ? a.getBookingSource().name() : null,
                 a.getCheckedInAt(),
@@ -723,7 +788,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 a.getStartedAt(),
                 a.getFinishedAt(),
                 a.getCompletedAt(),
-                null // amount: sin fuente de precio por tipo de cita todavía
+                null
         );
     }
 

@@ -15,5 +15,7 @@ public record DoctorAgendaItemResponse(
         String reason,
         String appointmentType,
         String flowStatus,
+        String careStage,
+        Boolean triageCompleted,
         boolean isNewPatient
 ) {}

@@ -184,23 +184,23 @@ public class DoctorPortalService {
         LocalDate birthDate = person != null ? person.getBirthDate() : null;
         Integer age = birthDate != null ? Period.between(birthDate, LocalDate.now()).getYears() : null;
 
-        return new DoctorPatientResponse(
-                patientId,
-                buildName(person),
-                buildInitials(person),
-                person != null ? person.getGender() : null,
-                birthDate,
-                age,
-                person != null ? person.getPhone() : null,
-                person != null ? person.getContactEmail() : null,
-                patient.getBloodType(),
-                allergyCounts.getOrDefault(patientId, 0L),
-                conditionCounts.getOrDefault(patientId, 0L),
-                visits.size(),
-                lastVisit != null ? lastVisit.getScheduledAt() : null,
-                lastVisit != null ? lastVisit.getReason() : null,
-                nextAppointment != null ? nextAppointment.getScheduledAt() : null
-        );
+        return DoctorPatientResponse.builder()
+                .patientId(patientId)
+                .fullName(buildName(person))
+                .initials(buildInitials(person))
+                .gender(person != null ? person.getGender() : null)
+                .birthDate(birthDate != null ? birthDate.toString() : null)
+                .age(age)
+                .phone(person != null ? person.getPhone() : null)
+                .email(person != null ? person.getContactEmail() : null)
+                .bloodType(patient.getBloodType())
+                .allergyCount(allergyCounts.getOrDefault(patientId, 0L).intValue())
+                .conditionCount(conditionCounts.getOrDefault(patientId, 0L).intValue())
+                .totalVisits((long) visits.size())
+                .lastVisitAt(lastVisit != null ? lastVisit.getScheduledAt() : null)
+                .lastReason(lastVisit != null ? lastVisit.getReason() : null)
+                .nextAppointmentAt(nextAppointment != null ? nextAppointment.getScheduledAt() : null)
+                .build();
     }
 
     @Transactional(readOnly = true)

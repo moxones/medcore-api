@@ -4,6 +4,7 @@ import com.medical.medcore.config.exception.NotFoundException;
 import com.medical.medcore.dto.response.DashboardSummaryResponse;
 import com.medical.medcore.dto.response.DoctorAgendaItemResponse;
 import com.medical.medcore.dto.response.DoctorDashboardSummaryResponse;
+import com.medical.medcore.dto.response.DoctorProductivityResponse;
 import com.medical.medcore.dto.response.DoctorRecentPatientResponse;
 import com.medical.medcore.entity.Appointment;
 import com.medical.medcore.entity.AppointmentType;
@@ -12,12 +13,16 @@ import com.medical.medcore.entity.Patient;
 import com.medical.medcore.entity.Person;
 import com.medical.medcore.entity.User;
 import com.medical.medcore.entity.enums.AppointmentFlowStatus;
+import com.medical.medcore.entity.enums.CareStage;
+import com.medical.medcore.entity.enums.ClinicProcess;
 import com.medical.medcore.repository.AppointmentRepository;
 import com.medical.medcore.repository.AppointmentTypeRepository;
 import com.medical.medcore.repository.DoctorRepository;
 import com.medical.medcore.repository.MedicalEntryRepository;
 import com.medical.medcore.repository.PaymentRepository;
+import com.medical.medcore.repository.TriageRepository;
 import com.medical.medcore.repository.UserRepository;
+import com.medical.medcore.service.tenant.TenantProcessConfigService;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +52,8 @@ public class DashboardService {
     private final UserRepository userRepository;
     private final MedicalEntryRepository medicalEntryRepository;
     private final AppointmentTypeRepository appointmentTypeRepository;
+    private final TriageRepository triageRepository;
+    private final TenantProcessConfigService processConfigService;
 
     private static final Long STATUS_CANCELLED = 4L;
     private static final Long STATUS_COMPLETED = 3L;
@@ -87,13 +94,64 @@ public class DashboardService {
         );
     }
 
-    public java.util.List<com.medical.medcore.dto.response.DoctorProductivityResponse> getDoctorProductivity() {
+    @Transactional(readOnly = true)
+    public List<DoctorProductivityResponse> getDoctorProductivity() {
         Long tenantId = TenantContext.requireTenantId();
         LocalDate today = LocalDate.now();
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
         LocalDateTime endOfMonth = today.plusMonths(1).withDayOfMonth(1).atStartOfDay();
 
-        return appointmentRepository.getProductivityByDoctor(tenantId, startOfMonth, endOfMonth);
+        List<Object[]> rows = appointmentRepository.getProductivityByDoctor(tenantId, startOfMonth, endOfMonth);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> doctorIds = rows.stream().map(r -> asLong(r[0])).collect(Collectors.toList());
+        Map<Long, String> specialtiesByDoctor = appointmentRepository.getSpecialtiesByDoctorIds(doctorIds).stream()
+                .collect(Collectors.toMap(r -> asLong(r[0]), r -> asString(r[1])));
+
+        return rows.stream()
+                .map(r -> {
+                    Long doctorId = asLong(r[0]);
+                    long total = asLong(r[2]);
+                    long completed = asLong(r[3]);
+                    long cancelled = asLong(r[4]);
+                    long noShow = asLong(r[5]);
+                    long uniquePatients = asLong(r[6]);
+                    long avgMinutes = r[7] != null ? Math.round(((Number) r[7]).doubleValue()) : 0L;
+
+                    return new DoctorProductivityResponse(
+                            doctorId,
+                            asString(r[1]),
+                            specialtiesByDoctor.get(doctorId),
+                            total,
+                            completed,
+                            cancelled,
+                            noShow,
+                            uniquePatients,
+                            avgMinutes,
+                            percentage(completed, total),
+                            percentage(noShow, total)
+                    );
+                })
+                .collect(Collectors.toList());
+    }
+
+    private static long asLong(Object value) {
+        return value != null ? ((Number) value).longValue() : 0L;
+    }
+
+    private static String asString(Object value) {
+        return value != null ? value.toString() : null;
+    }
+
+    private static double percentage(long part, long total) {
+        if (total <= 0) {
+            return 0.0;
+        }
+        return BigDecimal.valueOf((double) part / total * 100)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 
     /**
@@ -112,37 +170,38 @@ public class DashboardService {
         LocalDateTime startOfToday = today.atStartOfDay();
         LocalDateTime endOfToday = today.plusDays(1).atStartOfDay();
 
-        // Agenda de hoy (citas no canceladas), ordenada por hora ascendente.
         List<Appointment> todays = appointmentRepository.findDoctorAgendaWithDetails(
                 tenantId, doctorId, startOfToday, endOfToday, STATUS_CANCELLED);
 
-        // Nombre legible del tipo de cita (id -> name).
         Map<Long, String> typeNames = appointmentTypeRepository.findAll().stream()
                 .collect(Collectors.toMap(AppointmentType::getId, AppointmentType::getName, (a, b) -> a));
 
-        // Pacientes ya vistos por este médico antes de hoy → para marcar isNewPatient.
         Set<Long> returningPatientIds = new HashSet<>(
                 appointmentRepository.findPatientIdsSeenByDoctorBefore(
                         tenantId, doctorId, startOfToday, STATUS_CANCELLED));
 
+        boolean triageEnabled = Boolean.TRUE.equals(processConfigService.getConfig().get(ClinicProcess.TRIAGE));
+        Set<Long> triagedIds = triageEnabled
+                ? new HashSet<>(triageRepository.findAppointmentIdsWithTriage(
+                        todays.stream().map(Appointment::getId).collect(Collectors.toList())))
+                : Set.of();
+
         List<DoctorAgendaItemResponse> agenda = todays.stream()
-                .map(a -> toAgendaItem(a, typeNames, returningPatientIds))
+                .map(a -> toAgendaItem(a, typeNames, returningPatientIds, triageEnabled, triagedIds.contains(a.getId())))
                 .collect(Collectors.toList());
 
-        // KPIs por flowStatus.
-        long upcoming = countByFlow(agenda, AppointmentFlowStatus.SCHEDULED);
-        long waiting = agenda.stream()
-                .filter(i -> AppointmentFlowStatus.WAITING.name().equals(i.flowStatus())
-                        || AppointmentFlowStatus.CALLED.name().equals(i.flowStatus()))
-                .count();
-        long inProgress = countByFlow(agenda, AppointmentFlowStatus.IN_PROCESS);
-        long completedToday = countByFlow(agenda, AppointmentFlowStatus.COMPLETED);
+        long upcoming = countByStage(agenda, CareStage.BOOKED);
+        long waiting = countByStage(agenda, CareStage.READY);
+        long inProgress = countByStage(agenda, CareStage.IN_CONSULTATION);
+        long completedToday = countByStage(agenda, CareStage.ATTENDED);
 
-        // Próximo paciente: la cita activa (no completada) más cercana en el tiempo.
         DoctorAgendaItemResponse nextPatient = agenda.stream()
-                .filter(i -> !AppointmentFlowStatus.COMPLETED.name().equals(i.flowStatus()))
+                .filter(i -> CareStage.READY.name().equals(i.careStage()))
                 .findFirst()
-                .orElse(null);
+                .orElseGet(() -> agenda.stream()
+                        .filter(i -> !CareStage.ATTENDED.name().equals(i.careStage()))
+                        .findFirst()
+                        .orElse(null));
 
         long pendingNotes = medicalEntryRepository.countUnsignedByCreator(tenantId, userId);
         long avgConsultationMinutes = averageConsultationMinutes(todays);
@@ -174,16 +233,18 @@ public class DashboardService {
                 .orElseThrow(() -> new AccessDeniedException("El usuario no tiene un médico asociado"));
     }
 
-    private long countByFlow(List<DoctorAgendaItemResponse> agenda, AppointmentFlowStatus status) {
-        return agenda.stream().filter(i -> status.name().equals(i.flowStatus())).count();
+    private long countByStage(List<DoctorAgendaItemResponse> agenda, CareStage stage) {
+        return agenda.stream().filter(i -> stage.name().equals(i.careStage())).count();
     }
 
     private DoctorAgendaItemResponse toAgendaItem(Appointment a, Map<Long, String> typeNames,
-                                                  Set<Long> returningPatientIds) {
+                                                  Set<Long> returningPatientIds,
+                                                  boolean triageEnabled, boolean triageCompleted) {
         Patient patient = a.getPatient();
         Person person = patient != null ? patient.getPerson() : null;
         Long patientId = patient != null ? patient.getId() : null;
-        String flowStatus = AppointmentFlowStatus.from(a.getFlowStatus()).name();
+        AppointmentFlowStatus flowStatus = AppointmentFlowStatus.from(a.getFlowStatus());
+        CareStage careStage = CareStage.resolve(flowStatus, triageEnabled, triageCompleted);
 
         return new DoctorAgendaItemResponse(
                 a.getId(),
@@ -194,7 +255,9 @@ public class DashboardService {
                 a.getDurationMinutes(),
                 a.getReason(),
                 a.getAppointmentTypeId() != null ? typeNames.get(a.getAppointmentTypeId()) : null,
-                flowStatus,
+                flowStatus.name(),
+                careStage.name(),
+                triageEnabled ? triageCompleted : null,
                 patientId != null && !returningPatientIds.contains(patientId)
         );
     }

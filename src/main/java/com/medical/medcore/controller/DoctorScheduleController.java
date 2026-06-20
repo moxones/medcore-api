@@ -4,6 +4,7 @@ import com.medical.medcore.dto.request.DoctorScheduleRequest;
 import com.medical.medcore.dto.request.DoctorScheduleUpdateRequest;
 import com.medical.medcore.dto.response.DoctorScheduleResponse;
 import com.medical.medcore.security.authorization.annotation.RequireAdminOrSuperAdmin;
+import com.medical.medcore.security.authorization.annotation.RequireDoctorOrAdminOrSuperAdmin;
 import com.medical.medcore.service.doctor.DoctorScheduleService;
 import com.medical.medcore.types.ApiResponse;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ public class DoctorScheduleController {
 
     private final DoctorScheduleService doctorScheduleService;
 
+    @RequireDoctorOrAdminOrSuperAdmin
     @GetMapping
     public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> list(
             @PathVariable Long doctorId,
@@ -32,6 +34,7 @@ public class DoctorScheduleController {
                 "Horarios del doctor"));
     }
 
+    @RequireDoctorOrAdminOrSuperAdmin
     @GetMapping("/{scheduleId}")
     public ResponseEntity<ApiResponse<DoctorScheduleResponse>> findById(
             @PathVariable Long doctorId,

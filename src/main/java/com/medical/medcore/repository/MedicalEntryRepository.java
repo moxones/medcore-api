@@ -49,18 +49,18 @@ public interface MedicalEntryRepository extends JpaRepository<MedicalEntry, Long
             "WHERE p.tenantId = :tenantId AND ap.doctor.id = :doctorId AND " +
             "EXISTS (SELECT 1 FROM Prescription pr WHERE pr.medicalEntry = e) AND " +
             "(:q IS NULL OR " +
-            " LOWER(CONCAT(per.firstName, ' ', per.lastName)) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            " LOWER(CONCAT(CAST(per.firstName AS String), ' ', CAST(per.lastName AS String))) LIKE LOWER(CONCAT('%', CAST(:q AS String), '%')) OR " +
             " EXISTS (SELECT 1 FROM Prescription pr2 WHERE pr2.medicalEntry = e AND " +
-            "         LOWER(pr2.medication) LIKE LOWER(CONCAT('%', :q, '%')))) " +
+            "         LOWER(pr2.medication) LIKE LOWER(CONCAT('%', CAST(:q AS String), '%')))) " +
             "ORDER BY e.id DESC",
             countQuery = "SELECT COUNT(DISTINCT e) FROM MedicalEntry e " +
             "JOIN e.appointment ap JOIN e.medicalRecord mr JOIN mr.patient p JOIN p.person per " +
             "WHERE p.tenantId = :tenantId AND ap.doctor.id = :doctorId AND " +
             "EXISTS (SELECT 1 FROM Prescription pr WHERE pr.medicalEntry = e) AND " +
             "(:q IS NULL OR " +
-            " LOWER(CONCAT(per.firstName, ' ', per.lastName)) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+            " LOWER(CONCAT(CAST(per.firstName AS String), ' ', CAST(per.lastName AS String))) LIKE LOWER(CONCAT('%', CAST(:q AS String), '%')) OR " +
             " EXISTS (SELECT 1 FROM Prescription pr2 WHERE pr2.medicalEntry = e AND " +
-            "         LOWER(pr2.medication) LIKE LOWER(CONCAT('%', :q, '%'))))")
+            "         LOWER(pr2.medication) LIKE LOWER(CONCAT('%', CAST(:q AS String), '%'))))")
     Page<MedicalEntry> findPrescriptionEntriesByDoctor(@Param("tenantId") Long tenantId,
                                                        @Param("doctorId") Long doctorId,
                                                        @Param("q") String q,

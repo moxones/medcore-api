@@ -5,6 +5,7 @@ import com.medical.medcore.dto.request.CreateSuperAdminUserRequest;
 import com.medical.medcore.dto.request.CreateUserRequest;
 import com.medical.medcore.dto.request.UpdateUserRequest;
 import com.medical.medcore.dto.request.UpdateUserStatusRequest;
+import com.medical.medcore.dto.request.SetPasswordRequest;
 import com.medical.medcore.dto.response.UserResponse;
 
 import java.util.List;
@@ -28,6 +29,8 @@ public interface UserService {
     List<UserResponse> findAllByTenant(Long tenantId);
 
     UserResponse updateForSuperAdmin(Long id, UpdateUserRequest request);
+
+    void setPasswordForSuperAdmin(Long id, SetPasswordRequest request);
 
     UserResponse assignRoles(Long id, List<Long> roleIds);
 }

@@ -9,9 +9,13 @@ import com.medical.medcore.dto.response.AppointmentResponse;
 import com.medical.medcore.dto.response.PatientProfileResponse;
 import com.medical.medcore.dto.response.PatientResponse;
 import com.medical.medcore.entity.*;
+import com.medical.medcore.entity.enums.AppointmentFlowStatus;
+import com.medical.medcore.entity.enums.CareStage;
+import com.medical.medcore.entity.enums.ClinicProcess;
 import com.medical.medcore.repository.*;
 import com.medical.medcore.service.appointment.impl.AppointmentServiceImpl;
 import com.medical.medcore.service.patient.PatientService;
+import com.medical.medcore.service.tenant.TenantProcessConfigService;
 import com.medical.medcore.types.PageableResponse;
 import com.medical.medcore.util.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +43,8 @@ public class PatientServiceImpl implements PatientService {
     private final DocumentTypeRepository documentTypeRepository;
     private final PatientSearchRepository patientSearchRepository;
     private final AppointmentRepository appointmentRepository;
+    private final TriageRepository triageRepository;
+    private final TenantProcessConfigService processConfigService;
 
 
 @Override
@@ -304,10 +310,13 @@ public class PatientServiceImpl implements PatientService {
                 tenantId, null, patient.getId(), statusId, startDate, endDate, flowStatus,
                 false, java.util.List.of(-1L), pageable);
 
-        return PageableResponse.from(resultPage.map(this::mapAppointmentToResponse));
+        boolean triageEnabled = Boolean.TRUE.equals(processConfigService.getConfig().get(ClinicProcess.TRIAGE));
+        return PageableResponse.from(resultPage.map(a ->
+                mapAppointmentToResponse(a, triageEnabled,
+                        triageEnabled && triageRepository.existsByAppointmentId(a.getId()))));
     }
 
-    private AppointmentResponse mapAppointmentToResponse(Appointment a) {
+    private AppointmentResponse mapAppointmentToResponse(Appointment a, boolean triageEnabled, boolean triageCompleted) {
         Patient patient = a.getPatient();
         Person patientPerson = patient != null ? patient.getPerson() : null;
 
@@ -315,6 +324,9 @@ public class PatientServiceImpl implements PatientService {
         Person doctorPerson = doctor != null ? doctor.getPerson() : null;
 
         Branch branch = a.getBranch();
+
+        CareStage careStage = CareStage.resolve(
+                AppointmentFlowStatus.from(a.getFlowStatus()), triageEnabled, triageCompleted);
 
         return new AppointmentResponse(
                 a.getId(),
@@ -332,6 +344,8 @@ public class PatientServiceImpl implements PatientService {
                 a.getReason(),
                 a.getDurationMinutes(),
                 a.getFlowStatus(),
+                careStage.name(),
+                triageEnabled ? triageCompleted : null,
                 a.getCreatedAt(),
                 a.getBookingSource() != null ? a.getBookingSource().name() : null,
                 a.getCheckedInAt(),
@@ -339,7 +353,7 @@ public class PatientServiceImpl implements PatientService {
                 a.getStartedAt(),
                 a.getFinishedAt(),
                 a.getCompletedAt(),
-                null // amount: sin fuente de precio por tipo de cita todavía
+                null
         );
     }
 
