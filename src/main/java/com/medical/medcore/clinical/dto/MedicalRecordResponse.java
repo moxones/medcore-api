@@ -1,0 +1,16 @@
+package com.medical.medcore.clinical.dto;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+public record MedicalRecordResponse(
+        Long recordId,
+        Long patientId,
+        String patientName,
+        String bloodType,
+        String allergies,
+        String chronicConditions,
+        String clinicalNotes,
+        LocalDateTime createdAt,
+        List<MedicalEntryResponse> entries
+) {}

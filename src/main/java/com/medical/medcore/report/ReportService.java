@@ -1,10 +1,12 @@
 package com.medical.medcore.report;
 
-import com.medical.medcore.config.exception.BadRequestException;
-import com.medical.medcore.config.exception.NotFoundException;
-import com.medical.medcore.dto.response.report.ReportResult;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.medical.medcore.shared.exception.BadRequestException;
+import com.medical.medcore.shared.exception.NotFoundException;
+import com.medical.medcore.report.dto.ReportResult;
 import com.medical.medcore.report.export.ReportExporter;
-import com.medical.medcore.util.TenantContext;
+import com.medical.medcore.shared.tenancy.TenantContext;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -19,6 +21,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class ReportService {
 
     private final Map<String, ReportProvider> providers;

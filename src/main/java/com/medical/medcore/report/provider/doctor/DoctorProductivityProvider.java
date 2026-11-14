@@ -1,12 +1,12 @@
 package com.medical.medcore.report.provider.doctor;
 
-import com.medical.medcore.dto.response.report.BarsSection;
-import com.medical.medcore.dto.response.report.ReportBar;
-import com.medical.medcore.dto.response.report.ReportColumn;
-import com.medical.medcore.dto.response.report.ReportKpi;
-import com.medical.medcore.dto.response.report.ReportResult;
-import com.medical.medcore.dto.response.report.ReportSection;
-import com.medical.medcore.dto.response.report.TableSection;
+import com.medical.medcore.report.dto.BarsSection;
+import com.medical.medcore.report.dto.ReportBar;
+import com.medical.medcore.report.dto.ReportColumn;
+import com.medical.medcore.report.dto.ReportKpi;
+import com.medical.medcore.report.dto.ReportResult;
+import com.medical.medcore.report.dto.ReportSection;
+import com.medical.medcore.report.dto.TableSection;
 import com.medical.medcore.report.ReportContext;
 import com.medical.medcore.report.ReportProvider;
 import com.medical.medcore.report.ReportQuery;
@@ -14,8 +14,8 @@ import com.medical.medcore.report.provider.BaseReportProvider;
 import com.medical.medcore.report.support.BranchFilter;
 import com.medical.medcore.report.support.CurrentUserResolver;
 import com.medical.medcore.report.support.ReportFormatter;
-import com.medical.medcore.repository.report.ReportingAppointmentRepository;
-import com.medical.medcore.security.authorization.constants.RoleConstants;
+import com.medical.medcore.report.repository.ReportingAppointmentRepository;
+import com.medical.medcore.shared.security.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

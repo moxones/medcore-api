@@ -1,6 +1,8 @@
 package com.medical.medcore.report.provider;
 
-import com.medical.medcore.dto.response.report.ReportRange;
+import com.medical.medcore.shared.exception.ForbiddenException;
+
+import com.medical.medcore.report.dto.ReportRange;
 import com.medical.medcore.report.ReportContext;
 import com.medical.medcore.report.ReportQuery;
 import com.medical.medcore.report.support.BranchFilter;
@@ -44,10 +46,13 @@ public abstract class BaseReportProvider {
     protected BranchFilter resolveBranches(ReportQuery q, ReportContext ctx) {
         if (ctx.hasBranchScope()) {
             List<Long> scope = ctx.branchIds();
-            if (q.branchId() != null && scope.contains(q.branchId())) {
-                return BranchFilter.of(List.of(q.branchId()));
+            if (q.branchId() == null) {
+                return BranchFilter.of(scope);
             }
-            return BranchFilter.of(scope);
+            if (!scope.contains(q.branchId())) {
+                throw new ForbiddenException("No tienes acceso a esta sucursal");
+            }
+            return BranchFilter.of(List.of(q.branchId()));
         }
         if (q.branchId() != null) {
             return BranchFilter.of(List.of(q.branchId()));

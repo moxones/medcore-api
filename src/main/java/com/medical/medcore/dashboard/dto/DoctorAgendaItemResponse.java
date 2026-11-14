@@ -1,0 +1,18 @@
+package com.medical.medcore.dashboard.dto;
+
+import java.time.LocalDateTime;
+
+public record DoctorAgendaItemResponse(
+        Long appointmentId,
+        Long patientId,
+        String patientName,
+        String patientInitials,
+        LocalDateTime scheduledAt,
+        Integer durationMinutes,
+        String reason,
+        String appointmentType,
+        String flowStatus,
+        String careStage,
+        Boolean triageCompleted,
+        boolean isNewPatient
+) {}

@@ -1,6 +1,6 @@
 package com.medical.medcore.report;
 
-import com.medical.medcore.dto.response.report.ReportResult;
+import com.medical.medcore.report.dto.ReportResult;
 
 import java.util.Set;
 

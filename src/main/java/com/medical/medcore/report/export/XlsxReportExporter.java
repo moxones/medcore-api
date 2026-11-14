@@ -1,14 +1,14 @@
 package com.medical.medcore.report.export;
 
-import com.medical.medcore.dto.response.report.BarsSection;
-import com.medical.medcore.dto.response.report.ListSection;
-import com.medical.medcore.dto.response.report.ReportBar;
-import com.medical.medcore.dto.response.report.ReportColumn;
-import com.medical.medcore.dto.response.report.ReportKpi;
-import com.medical.medcore.dto.response.report.ReportListItem;
-import com.medical.medcore.dto.response.report.ReportResult;
-import com.medical.medcore.dto.response.report.ReportSection;
-import com.medical.medcore.dto.response.report.TableSection;
+import com.medical.medcore.report.dto.BarsSection;
+import com.medical.medcore.report.dto.ListSection;
+import com.medical.medcore.report.dto.ReportBar;
+import com.medical.medcore.report.dto.ReportColumn;
+import com.medical.medcore.report.dto.ReportKpi;
+import com.medical.medcore.report.dto.ReportListItem;
+import com.medical.medcore.report.dto.ReportResult;
+import com.medical.medcore.report.dto.ReportSection;
+import com.medical.medcore.report.dto.TableSection;
 import com.medical.medcore.report.ReportFormat;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;

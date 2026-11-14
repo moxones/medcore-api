@@ -1,10 +1,10 @@
 package com.medical.medcore.report.support;
 
-import com.medical.medcore.entity.User;
+import com.medical.medcore.identity.domain.User;
 import com.medical.medcore.report.ReportContext;
-import com.medical.medcore.repository.DoctorRepository;
-import com.medical.medcore.repository.PatientRepository;
-import com.medical.medcore.repository.UserRepository;
+import com.medical.medcore.doctor.repository.DoctorRepository;
+import com.medical.medcore.patient.repository.PatientRepository;
+import com.medical.medcore.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;

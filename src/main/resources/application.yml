@@ -2,8 +2,6 @@ server:
   port: 8080
   servlet:
     context-path: /api
-  # Necesario detrás de nginx: respeta X-Forwarded-For / X-Forwarded-Proto
-  # para que getRemoteAddr() y los esquemas https se resuelvan correctamente.
   forward-headers-strategy: native
 
 spring:
@@ -26,13 +24,19 @@ spring:
       connection-timeout: 20000
       max-lifetime: 1800000
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
+    locations: classpath:db/migration
+
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
 
   jackson:
@@ -44,20 +48,39 @@ booking:
 
 security:
   jwt:
-    # En producción DEBE definirse JWT_SECRET (>= 32 caracteres / 256 bits).
-    # El default sólo aplica en desarrollo local.
     secret: ${JWT_SECRET:dev-only-medcore-secret-key-change-me-in-prod-0123456789}
     expiration: 900000
     refresh-expiration: 604800000
 
+app:
+  rate-limit:
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:300}
+    window-ms: ${RATE_LIMIT_WINDOW_MS:60000}
+  auth:
+    max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
+    lock-minutes: ${AUTH_LOCK_MINUTES:15}
+    reset-token-minutes: ${AUTH_RESET_TOKEN_MINUTES:30}
+    expose-reset-token: ${AUTH_EXPOSE_RESET_TOKEN:false}
+  mail:
+    from: ${MAIL_FROM:no-reply@medcore.local}
+  bootstrap:
+    platform-subdomain: ${BOOTSTRAP_PLATFORM_SUBDOMAIN:healthcare}
+    platform-name: ${BOOTSTRAP_PLATFORM_NAME:MedCore}
+    super-admin-email: ${BOOTSTRAP_SUPER_ADMIN_EMAIL:}
+    super-admin-password: ${BOOTSTRAP_SUPER_ADMIN_PASSWORD:}
+
 ---
-# Logging SQL verboso sólo en desarrollo local
 spring:
   config:
     activate:
       on-profile: dev
 
+app:
+  rate-limit:
+    max-requests: ${RATE_LIMIT_MAX_REQUESTS:6000}
+  auth:
+    expose-reset-token: ${AUTH_EXPOSE_RESET_TOKEN:true}
+
 logging:
   level:
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql.BasicBinder: trace
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:info}
