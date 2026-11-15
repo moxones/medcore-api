@@ -2,6 +2,8 @@ package com.medical.medcore.report;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.platform.service.TenantModuleService;
 import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.shared.exception.NotFoundException;
 import com.medical.medcore.report.dto.ReportResult;
@@ -26,8 +28,11 @@ public class ReportService {
 
     private final Map<String, ReportProvider> providers;
     private final Map<ReportFormat, ReportExporter> exporters;
+    private final TenantModuleService moduleService;
 
-    public ReportService(List<ReportProvider> providerList, List<ReportExporter> exporterList) {
+    public ReportService(List<ReportProvider> providerList, List<ReportExporter> exporterList,
+                         TenantModuleService moduleService) {
+        this.moduleService = moduleService;
         this.providers = providerList.stream()
                 .collect(Collectors.toUnmodifiableMap(ReportProvider::key, Function.identity()));
         this.exporters = exporterList.stream()
@@ -38,6 +43,7 @@ public class ReportService {
         ReportProvider provider = resolveProvider(key);
         ReportContext ctx = resolveContext();
         authorize(provider, ctx);
+        assertModules(provider);
         ReportQuery query = normalize(rawQuery);
         return provider.generate(query, ctx);
     }
@@ -63,6 +69,19 @@ public class ReportService {
         boolean allowed = provider.allowedRoles().stream().anyMatch(ctx::hasRole);
         if (!allowed) {
             throw new AccessDeniedException("No tiene acceso a este reporte");
+        }
+    }
+
+    private void assertModules(ReportProvider provider) {
+        Set<ClinicModule> required = provider.requiredModules();
+        if (required.isEmpty()) {
+            return;
+        }
+        Set<ClinicModule> enabled = moduleService.current();
+        for (ClinicModule module : required) {
+            if (!enabled.contains(module)) {
+                throw moduleService.disabled(module);
+            }
         }
     }
 

@@ -20,8 +20,23 @@ public enum AppointmentFlowStatus {
             COMPLETED, Set.of()
     );
 
+    private static final Map<AppointmentFlowStatus, Set<AppointmentFlowStatus>> ALLOWED_WITHOUT_CONSULTATION = Map.of(
+            SCHEDULED, Set.of(WAITING),
+            WAITING, Set.of(CALLED, PENDING_PAYMENT, COMPLETED),
+            CALLED, Set.of(WAITING, PENDING_PAYMENT, COMPLETED),
+            IN_PROCESS, Set.of(PENDING_PAYMENT, COMPLETED, CALLED),
+            PENDING_PAYMENT, Set.of(COMPLETED, WAITING),
+            COMPLETED, Set.of()
+    );
+
     public boolean canTransitionTo(AppointmentFlowStatus target) {
-        return ALLOWED.getOrDefault(this, Set.of()).contains(target);
+        return canTransitionTo(target, true);
+    }
+
+    public boolean canTransitionTo(AppointmentFlowStatus target, boolean consultationEnabled) {
+        Map<AppointmentFlowStatus, Set<AppointmentFlowStatus>> rules =
+                consultationEnabled ? ALLOWED : ALLOWED_WITHOUT_CONSULTATION;
+        return rules.getOrDefault(this, Set.of()).contains(target);
     }
 
     public boolean isBeforeConsultation() {

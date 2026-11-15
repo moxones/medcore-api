@@ -30,7 +30,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private static final Set<String> PUBLIC_AUTH_PATHS = Set.of(
             "/auth/login", "/auth/register", "/auth/refresh", "/auth/logout",
-            "/auth/forgot-password", "/auth/reset-password");
+            "/auth/forgot-password", "/auth/reset-password", "/auth/activation/check", "/auth/activate");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {

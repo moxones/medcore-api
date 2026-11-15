@@ -58,4 +58,15 @@ class UserTest {
         assertThat(user.hasRole("DOCTOR")).isTrue();
         assertThat(user.hasRole("PATIENT")).isFalse();
     }
+
+    @Test
+    void settingAPasswordEndsThePendingActivation() {
+        User user = User.builder().pendingActivation(true).build();
+        assertThat(user.isPendingActivation()).isTrue();
+
+        user.changePassword("hash", NOW, false);
+
+        assertThat(user.isPendingActivation()).isFalse();
+        assertThat(user.getPasswordChangedAt()).isEqualTo(NOW);
+    }
 }

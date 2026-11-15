@@ -17,7 +17,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -66,6 +68,13 @@ public class Person extends AuditableEntity {
     private Boolean profileCompleted = false;
 
     @Builder.Default
+    @Column(name = "identity_check_failures", nullable = false)
+    private Integer identityCheckFailures = 0;
+
+    @Column(name = "identity_check_locked_until")
+    private LocalDateTime identityCheckLockedUntil;
+
+    @Builder.Default
     @OneToMany(mappedBy = "person", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<PersonDocument> documents = new ArrayList<>();
 
@@ -83,8 +92,26 @@ public class Person extends AuditableEntity {
     }
 
     public void refreshProfileCompleted() {
-        profileCompleted = hasText(firstName) && hasText(lastName) && hasText(phone) && hasText(gender)
-                && birthDate != null && hasText(contactEmail) && primaryDocument() != null;
+        profileCompleted = missingFields(ProfileField.patientFields()).isEmpty();
+    }
+
+    public List<ProfileField> missingFields(Collection<ProfileField> required) {
+        return required.stream().filter(field -> !has(field)).sorted().toList();
+    }
+
+    public boolean isIdentityCheckLockedAt(LocalDateTime moment) {
+        return identityCheckLockedUntil != null && identityCheckLockedUntil.isAfter(moment);
+    }
+
+    private boolean has(ProfileField field) {
+        return switch (field) {
+            case FIRST_NAME -> hasText(firstName);
+            case LAST_NAME -> hasText(lastName);
+            case DOCUMENT -> primaryDocument() != null;
+            case BIRTH_DATE -> birthDate != null;
+            case GENDER -> hasText(gender);
+            case PHONE -> hasText(phone);
+        };
     }
 
     private static boolean hasText(String value) {

@@ -15,6 +15,8 @@ public record PatientSelfRegistrationRequest(
         @NotBlank(message = "El número de documento es obligatorio") @Size(max = 50) String documentNumber,
         @NotBlank(message = "El email es obligatorio") @Email(message = "Email inválido") @Size(max = 150) String email,
         @NotBlank(message = "La contraseña es obligatoria")
-        @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres") String password
+        @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres") String password,
+        @Size(max = 20) String gender,
+        @Size(max = 12) String emailCode
 ) {
 }

@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DoctorService {
 
-    private static final String NOT_FOUND = "Médico no encontrado";
+    private static final String NOT_FOUND = "Profesional no encontrado";
 
     private final DoctorRepository doctorRepository;
     private final UserRepository userRepository;
@@ -34,7 +34,7 @@ public class DoctorService {
         User user = userRepository.findByIdAndTenantId(TenantContext.requireCurrentUserId(), tenantId)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
         return doctorRepository.findByPersonIdAndTenantId(user.getPerson().getId(), tenantId)
-                .orElseThrow(() -> new NotFoundException("NO_DOCTOR_PROFILE", "No existe un médico asociado a este usuario"));
+                .orElseThrow(() -> new NotFoundException("NO_DOCTOR_PROFILE", "No existe un perfil profesional asociado a este usuario"));
     }
 
     public DoctorSelfResponse getMyProfile() {
@@ -50,18 +50,18 @@ public class DoctorService {
         Long tenantId = TenantContext.requireTenantId();
         Long personId = request.resolvedPersonId();
         if (personId == null) {
-            throw new BadRequestException("La persona del médico es obligatoria");
+            throw new BadRequestException("La persona del profesional es obligatoria");
         }
         Person person = personRepository.findByIdAndTenantId(personId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Persona no encontrada"));
         if (doctorRepository.findByPersonIdAndTenantId(personId, tenantId).isPresent()) {
-            throw new ConflictException("DOCTOR_ALREADY_REGISTERED", "Esta persona ya está registrada como médico");
+            throw new ConflictException("DOCTOR_ALREADY_REGISTERED", "Esta persona ya está registrada como profesional");
         }
         boolean hasDoctorAccount = userRepository.findByPersonIdAndTenantId(personId, tenantId)
                 .map(user -> user.hasRole(RoleConstants.DOCTOR))
                 .orElse(false);
         if (!hasDoctorAccount) {
-            throw new BadRequestException("DOCTOR_ROLE_REQUIRED", "La persona debe tener un usuario con rol de médico");
+            throw new BadRequestException("DOCTOR_ROLE_REQUIRED", "La persona debe tener un usuario con rol de profesional");
         }
         Doctor doctor = doctorRepository.save(Doctor.builder()
                 .tenantId(tenantId)

@@ -70,6 +70,10 @@ public class User extends AuditableEntity {
     private Boolean mustChangePassword = false;
 
     @Builder.Default
+    @Column(name = "pending_activation", nullable = false)
+    private Boolean pendingActivation = false;
+
+    @Builder.Default
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",
@@ -100,8 +104,13 @@ public class User extends AuditableEntity {
         password = encodedPassword;
         passwordChangedAt = moment;
         mustChangePassword = mustChangeOnNextLogin;
+        pendingActivation = false;
         failedLoginAttempts = 0;
         lockedUntil = null;
+    }
+
+    public boolean isPendingActivation() {
+        return Boolean.TRUE.equals(pendingActivation);
     }
 
     public boolean hasRole(String code) {

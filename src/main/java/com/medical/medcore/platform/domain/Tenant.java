@@ -31,6 +31,9 @@ public class Tenant extends AuditableEntity {
     @Column(name = "subdomain", nullable = false, unique = true, length = 100)
     private String subdomain;
 
+    @Column(name = "custom_domain", unique = true, length = 253)
+    private String customDomain;
+
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
@@ -66,4 +69,22 @@ public class Tenant extends AuditableEntity {
     @Builder.Default
     @Column(name = "currency", nullable = false, length = 3)
     private String currency = "PEN";
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "business_type", nullable = false, length = 30)
+    private BusinessType businessType = BusinessType.MEDICAL;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "theme_preset", nullable = false, length = 30)
+    private ThemePreset themePreset = ThemePreset.CLASSIC;
+
+    @Column(name = "accent_color", length = 20)
+    private String accentColor;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "font_family", nullable = false, length = 30)
+    private FontFamily fontFamily = FontFamily.ROBOTO;
 }

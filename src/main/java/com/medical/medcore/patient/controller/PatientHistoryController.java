@@ -11,6 +11,8 @@ import com.medical.medcore.shared.security.annotation.RequireDoctorOrAdmin;
 import com.medical.medcore.shared.security.annotation.RequireClinicalStaff;
 import com.medical.medcore.patient.service.PatientHistoryService;
 import com.medical.medcore.shared.api.ApiResponse;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/patients/{patientId}")
 @RequiredArgsConstructor
+@RequireModule(ClinicModule.CONSULTATION)
 public class PatientHistoryController {
 
     private final PatientHistoryService patientHistoryService;

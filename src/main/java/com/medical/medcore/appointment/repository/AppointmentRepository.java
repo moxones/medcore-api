@@ -341,4 +341,82 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
                                                     @Param("doctorId") Long doctorId,
                                                     @Param("patientIds") List<Long> patientIds,
                                                     @Param("inactiveStatusIds") List<Long> inactiveStatusIds);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            LEFT JOIN FETCH a.patient p LEFT JOIN FETCH p.person
+            LEFT JOIN FETCH a.doctor d LEFT JOIN FETCH d.person
+            LEFT JOIN FETCH a.branch
+            WHERE a.tenantId = :tenantId
+            AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
+            AND (:branchId IS NULL OR a.branch.id = :branchId)
+            AND a.scheduledAt >= :startDate AND a.scheduledAt < :endDate
+            AND a.statusId = :scheduledStatusId
+            AND a.flowStatus IN ('SCHEDULED', 'WAITING', 'CALLED')
+            ORDER BY a.scheduledAt ASC
+            """)
+    List<Appointment> findOpenInRange(@Param("tenantId") Long tenantId,
+                                      @Param("doctorId") Long doctorId,
+                                      @Param("branchId") Long branchId,
+                                      @Param("startDate") LocalDateTime startDate,
+                                      @Param("endDate") LocalDateTime endDate,
+                                      @Param("scheduledStatusId") Long scheduledStatusId);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            LEFT JOIN FETCH a.patient p LEFT JOIN FETCH p.person
+            LEFT JOIN FETCH a.doctor d LEFT JOIN FETCH d.person
+            LEFT JOIN FETCH a.branch
+            WHERE a.tenantId = :tenantId
+            AND a.needsReschedule = true
+            AND a.statusId = :scheduledStatusId
+            AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
+            AND (:applyBranchFilter = false OR a.branch.id IN :branchIds)
+            ORDER BY a.scheduledAt ASC
+            """)
+    List<Appointment> findRescheduleInbox(@Param("tenantId") Long tenantId,
+                                          @Param("scheduledStatusId") Long scheduledStatusId,
+                                          @Param("doctorId") Long doctorId,
+                                          @Param("applyBranchFilter") boolean applyBranchFilter,
+                                          @Param("branchIds") List<Long> branchIds);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.tenantId = :tenantId AND a.needsReschedule = true
+            AND a.statusId = :scheduledStatusId AND a.scheduleExceptionId = :exceptionId
+            """)
+    List<Appointment> findFlaggedByException(@Param("tenantId") Long tenantId,
+                                             @Param("scheduledStatusId") Long scheduledStatusId,
+                                             @Param("exceptionId") Long exceptionId);
+
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.tenantId = :tenantId AND a.needsReschedule = true
+            AND a.statusId = :scheduledStatusId AND a.branchClosureId = :closureId
+            """)
+    List<Appointment> findFlaggedByClosure(@Param("tenantId") Long tenantId,
+                                           @Param("scheduledStatusId") Long scheduledStatusId,
+                                           @Param("closureId") Long closureId);
+
+    @Query("""
+            SELECT a.scheduleExceptionId, COUNT(a),
+                   SUM(CASE WHEN a.needsReschedule = true AND a.statusId = :scheduledStatusId THEN 1 ELSE 0 END)
+            FROM Appointment a
+            WHERE a.tenantId = :tenantId AND a.scheduleExceptionId IN :exceptionIds
+            GROUP BY a.scheduleExceptionId
+            """)
+    List<Object[]> countByExceptions(@Param("tenantId") Long tenantId,
+                                     @Param("scheduledStatusId") Long scheduledStatusId,
+                                     @Param("exceptionIds") List<Long> exceptionIds);
+
+    @Query("""
+            SELECT a.branchClosureId,
+                   SUM(CASE WHEN a.needsReschedule = true AND a.statusId = :scheduledStatusId THEN 1 ELSE 0 END)
+            FROM Appointment a
+            WHERE a.tenantId = :tenantId AND a.branchClosureId IN :closureIds
+            GROUP BY a.branchClosureId
+            """)
+    List<Object[]> countPendingByClosures(@Param("tenantId") Long tenantId,
+                                          @Param("scheduledStatusId") Long scheduledStatusId,
+                                          @Param("closureIds") List<Long> closureIds);
 }

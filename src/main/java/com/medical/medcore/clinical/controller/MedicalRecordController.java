@@ -9,6 +9,8 @@ import com.medical.medcore.shared.security.annotation.RequireDoctorOrAdmin;
 import com.medical.medcore.shared.security.annotation.RequireClinicalStaff;
 import com.medical.medcore.clinical.service.MedicalRecordService;
 import com.medical.medcore.shared.api.ApiResponse;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/medical-records")
 @RequiredArgsConstructor
+@RequireModule(ClinicModule.CONSULTATION)
 public class MedicalRecordController {
 
     private final MedicalRecordService medicalRecordService;

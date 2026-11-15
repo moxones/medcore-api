@@ -108,7 +108,7 @@ public class PatientService {
         Pageable limit = PageRequest.of(0, MAX_SEARCH_RESULTS);
         String escaped = escapeLike(term.toLowerCase());
         List<Patient> patients = term.matches("\\d+")
-                ? patientRepository.searchByDocumentPrefix(tenantId, escaped + "%", limit)
+                ? patientRepository.searchByDigits(tenantId, escaped + "%", "%" + escaped + "%", limit)
                 : patientRepository.searchByText(tenantId, "%" + escaped + "%", limit);
         Map<Long, User> accounts = accountsByPerson(patients, tenantId);
         return patients.stream()

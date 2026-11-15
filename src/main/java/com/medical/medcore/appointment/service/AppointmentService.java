@@ -6,6 +6,7 @@ import com.medical.medcore.appointment.domain.AppointmentFlowStatus;
 import com.medical.medcore.appointment.domain.AppointmentReschedule;
 import com.medical.medcore.appointment.domain.AppointmentStatusCode;
 import com.medical.medcore.appointment.domain.BookingSource;
+import com.medical.medcore.appointment.domain.CancellationOrigin;
 import com.medical.medcore.appointment.dto.AppointmentFlowEventResponse;
 import com.medical.medcore.appointment.dto.AppointmentResponse;
 import com.medical.medcore.appointment.dto.CancelAppointmentRequest;
@@ -25,7 +26,9 @@ import com.medical.medcore.doctor.repository.DoctorBranchRepository;
 import com.medical.medcore.doctor.repository.DoctorRepository;
 import com.medical.medcore.patient.domain.Patient;
 import com.medical.medcore.patient.repository.PatientRepository;
+import com.medical.medcore.platform.domain.ClinicModule;
 import com.medical.medcore.platform.domain.ClinicProcess;
+import com.medical.medcore.platform.service.TenantModuleService;
 import com.medical.medcore.platform.service.TenantProcessConfigService;
 import com.medical.medcore.shared.api.PageableResponse;
 import com.medical.medcore.shared.exception.BadRequestException;
@@ -48,7 +51,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -62,6 +67,9 @@ public class AppointmentService {
     private static final String CODE_NOT_TODAY = "APPOINTMENT_NOT_TODAY";
     private static final String CODE_TRIAGE_REQUIRED = "TRIAGE_REQUIRED";
     private static final String CODE_NOT_ACTIVE = "APPOINTMENT_NOT_ACTIVE";
+    private static final String CODE_BALANCE_PENDING = "BALANCE_PENDING";
+    private static final String CODE_PAYMENT_REQUIRED = "PAYMENT_REQUIRED";
+    private static final String CODE_PROCESS_DISABLED = "PROCESS_DISABLED";
     private static final String SLOT_UNAVAILABLE = "El horario seleccionado ya no está disponible";
 
     private final AppointmentRepository appointmentRepository;
@@ -75,11 +83,13 @@ public class AppointmentService {
     private final TenantAppointmentTypeRepository tenantAppointmentTypeRepository;
     private final TriageRepository triageRepository;
     private final TenantProcessConfigService processConfigService;
+    private final TenantModuleService moduleService;
     private final AvailabilityService availabilityService;
     private final BookingPolicy bookingPolicy;
     private final AppointmentStatuses statuses;
     private final AppointmentAccess access;
     private final AppointmentMapper mapper;
+    private final AppointmentSettlement settlement;
 
     @Transactional
     public AppointmentResponse create(CreateAppointmentRequest request) {
@@ -211,30 +221,66 @@ public class AppointmentService {
     public AppointmentResponse reschedule(Long id, RescheduleAppointmentRequest request) {
         Appointment appointment = loadAccessible(id);
         assertScheduled(appointment);
-        if (appointment.flow() != AppointmentFlowStatus.SCHEDULED) {
+        boolean staff = SecurityUtils.isStaff();
+        AppointmentFlowStatus flow = appointment.flow();
+        boolean flaggedInWaitingRoom = staff && appointment.isFlaggedForReschedule() && flow.isBeforeConsultation();
+        if (flow != AppointmentFlowStatus.SCHEDULED && !flaggedInWaitingRoom) {
             throw new ConflictException(CODE_NOT_ACTIVE, "No se puede reprogramar una cita que ya inició su atención");
         }
-        boolean staff = SecurityUtils.isStaff();
+        Doctor doctor = resolveRescheduleDoctor(appointment, request.doctorId(), staff);
         LocalDateTime newStart = request.newScheduledAt();
-        if (newStart.equals(appointment.getScheduledAt())) {
+        boolean sameDoctor = doctor.getId().equals(appointment.getDoctor().getId());
+        if (sameDoctor && newStart.equals(appointment.getScheduledAt())) {
             throw new BadRequestException("La nueva fecha debe ser distinta de la actual");
         }
-        int duration = availabilityService.resolveDuration(appointment.getDoctor().getId(),
+        int duration = availabilityService.resolveDuration(doctor.getId(),
                 appointment.getBranch().getId(), newStart, appointment.getDurationMinutes());
         assertBookableTime(newStart, duration, staff);
-        assertSlotFree(appointment.getTenantId(), appointment.getDoctor().getId(), appointment.getPatient().getId(),
+        assertSlotFree(appointment.getTenantId(), doctor.getId(), appointment.getPatient().getId(),
                 newStart, duration, appointment.getId());
 
+        String reason = clean(request.reason());
+        if (reason == null && appointment.isFlaggedForReschedule()) {
+            reason = appointment.getRescheduleNote();
+        }
         rescheduleRepository.save(AppointmentReschedule.builder()
                 .appointment(appointment)
                 .oldScheduledAt(appointment.getScheduledAt())
                 .newScheduledAt(newStart)
-                .reason(clean(request.reason()))
+                .reason(reason)
                 .createdBy(TenantContext.getCurrentUserId())
                 .build());
         appointment.setScheduledAt(newStart);
         appointment.setDurationMinutes(duration);
+        appointment.setDoctor(doctor);
+        if (appointment.isFlaggedForReschedule()) {
+            appointment.resolveRescheduleFlag();
+        }
+        if (flow != AppointmentFlowStatus.SCHEDULED) {
+            appointment.returnToSchedule();
+            recordFlow(appointment, flow.name(), AppointmentFlowStatus.SCHEDULED.name(), reason);
+        }
         return mapper.toResponse(appointmentRepository.saveAndFlush(appointment));
+    }
+
+    private Doctor resolveRescheduleDoctor(Appointment appointment, Long requestedDoctorId, boolean staff) {
+        Doctor current = appointment.getDoctor();
+        if (requestedDoctorId == null || requestedDoctorId.equals(current.getId())) {
+            return current;
+        }
+        if (!staff || SecurityUtils.isDoctorOnly()) {
+            throw new ForbiddenException("Solo recepción o la administración pueden cambiar el profesional de una cita");
+        }
+        Doctor target = doctorRepository.findByIdAndTenantId(requestedDoctorId, appointment.getTenantId())
+                .orElseThrow(() -> new NotFoundException("Doctor no encontrado"));
+        if (!Boolean.TRUE.equals(target.getIsActive())) {
+            throw new BadRequestException("El doctor no está disponible");
+        }
+        Long branchId = appointment.getBranch().getId();
+        if (!doctorBranchRepository.existsByDoctor_IdAndBranch_IdAndIsActiveTrue(target.getId(), branchId)) {
+            throw new BadRequestException("El doctor no atiende en la sucursal seleccionada");
+        }
+        return target;
     }
 
     @Transactional
@@ -245,14 +291,33 @@ public class AppointmentService {
         if (!flow.isBeforeConsultation()) {
             throw new ConflictException(CODE_NOT_ACTIVE, "No se puede cancelar una cita que ya está en atención");
         }
-        if (!SecurityUtils.isStaff() && flow != AppointmentFlowStatus.SCHEDULED) {
+        boolean staff = SecurityUtils.isStaff();
+        if (!staff && flow != AppointmentFlowStatus.SCHEDULED) {
             throw new ConflictException(CODE_NOT_ACTIVE, "La cita ya fue registrada en recepción. Solicita la cancelación en la clínica");
         }
-        appointment.cancel(statuses.idOf(AppointmentStatusCode.CANCELLED), request.reason().trim(),
+        CancellationOrigin origin = staff
+                ? Optional.ofNullable(request.origin()).orElse(appointment.defaultCancellationOrigin())
+                : CancellationOrigin.PATIENT;
+        closeAsCancelled(appointment, flow, request.reason().trim(), origin);
+        return mapper.toResponse(appointment);
+    }
+
+    @Transactional
+    public void cancelBySchedule(Appointment appointment, String reason, CancellationOrigin origin) {
+        assertScheduled(appointment);
+        AppointmentFlowStatus flow = appointment.flow();
+        if (!flow.isBeforeConsultation()) {
+            throw new ConflictException(CODE_NOT_ACTIVE, "No se puede cancelar una cita que ya está en atención");
+        }
+        closeAsCancelled(appointment, flow, reason, origin);
+    }
+
+    private void closeAsCancelled(Appointment appointment, AppointmentFlowStatus flow, String reason,
+                                  CancellationOrigin origin) {
+        appointment.cancel(statuses.idOf(AppointmentStatusCode.CANCELLED), reason, origin,
                 TenantContext.getCurrentUserId(), bookingPolicy.now());
         appointmentRepository.save(appointment);
-        recordFlow(appointment, flow.name(), AppointmentStatusCode.CANCELLED.name(), request.reason().trim());
-        return mapper.toResponse(appointment);
+        recordFlow(appointment, flow.name(), AppointmentStatusCode.CANCELLED.name(), reason);
     }
 
     @Transactional
@@ -281,17 +346,28 @@ public class AppointmentService {
         if (current == target) {
             throw new BadRequestException("La cita ya se encuentra en estado " + target.name());
         }
-        if (!current.canTransitionTo(target)) {
+        Set<ClinicModule> modules = moduleService.current();
+        if (target == AppointmentFlowStatus.IN_PROCESS && !modules.contains(ClinicModule.CONSULTATION)) {
+            throw moduleService.disabled(ClinicModule.CONSULTATION);
+        }
+        if (target == AppointmentFlowStatus.PENDING_PAYMENT && !modules.contains(ClinicModule.BILLING)) {
+            throw moduleService.disabled(ClinicModule.BILLING);
+        }
+        if (!current.canTransitionTo(target, modules.contains(ClinicModule.CONSULTATION))) {
             throw new BadRequestException("INVALID_TRANSITION",
                     "Transición de estado no permitida: " + current.name() + " -> " + target.name());
         }
+        Map<ClinicProcess, Boolean> processes = processConfigService.getConfig();
+        assertProcessEnabled(target, processes);
+        assertPaymentNotSkipped(appointment, current, target, processes);
         boolean startsVisit = target == AppointmentFlowStatus.WAITING || target == AppointmentFlowStatus.IN_PROCESS;
         if (startsVisit && !bookingPolicy.isToday(appointment.getScheduledAt())) {
             throw new ConflictException(CODE_NOT_TODAY,
                     "Solo se puede registrar la llegada o iniciar la atención el día de la cita ("
                             + appointment.getScheduledAt().toLocalDate() + ").");
         }
-        if (target == AppointmentFlowStatus.IN_PROCESS && current.isBeforeConsultation() && triageMissing(appointment)) {
+        if (target == AppointmentFlowStatus.IN_PROCESS && current.isBeforeConsultation()
+                && isActive(processes, ClinicProcess.TRIAGE) && !triageRepository.existsByAppointmentId(appointment.getId())) {
             throw new ConflictException(CODE_TRIAGE_REQUIRED,
                     "No se puede iniciar la consulta: el paciente aún no ha completado el triaje.");
         }
@@ -355,9 +431,34 @@ public class AppointmentService {
         }
     }
 
-    private boolean triageMissing(Appointment appointment) {
-        boolean triageEnabled = Boolean.TRUE.equals(processConfigService.getConfig().get(ClinicProcess.TRIAGE));
-        return triageEnabled && !triageRepository.existsByAppointmentId(appointment.getId());
+    private void assertProcessEnabled(AppointmentFlowStatus target, Map<ClinicProcess, Boolean> processes) {
+        if (target == AppointmentFlowStatus.PENDING_PAYMENT && !isActive(processes, ClinicProcess.PAYMENT)) {
+            throw new ConflictException(CODE_PROCESS_DISABLED,
+                    "El cobro está desactivado en esta organización: finaliza la cita directamente.");
+        }
+        if (target == AppointmentFlowStatus.CALLED && !isActive(processes, ClinicProcess.CALLED)) {
+            throw new ConflictException(CODE_PROCESS_DISABLED,
+                    "El llamado está desactivado en esta organización: pasa al paciente directamente a atención.");
+        }
+    }
+
+    private void assertPaymentNotSkipped(Appointment appointment, AppointmentFlowStatus current,
+                                         AppointmentFlowStatus target, Map<ClinicProcess, Boolean> processes) {
+        boolean closing = target == AppointmentFlowStatus.COMPLETED;
+        if (!closing || !isActive(processes, ClinicProcess.PAYMENT) || SecurityUtils.isAdmin()
+                || !settlement.hasPendingBalance(appointment)) {
+            return;
+        }
+        if (current == AppointmentFlowStatus.PENDING_PAYMENT) {
+            throw new ConflictException(CODE_BALANCE_PENDING,
+                    "La cita tiene saldo pendiente. Registra el pago para finalizarla.");
+        }
+        throw new ConflictException(CODE_PAYMENT_REQUIRED,
+                "La cita tiene tarifa: pásala a «Por cobrar» y registra el pago para finalizarla.");
+    }
+
+    private boolean isActive(Map<ClinicProcess, Boolean> processes, ClinicProcess process) {
+        return Boolean.TRUE.equals(processes.get(process));
     }
 
     private Patient requirePatient(Long patientId, Long tenantId) {

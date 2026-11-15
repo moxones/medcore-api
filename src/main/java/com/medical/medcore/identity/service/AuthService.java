@@ -1,5 +1,6 @@
 package com.medical.medcore.identity.service;
 
+import com.medical.medcore.identity.domain.ProfileField;
 import com.medical.medcore.identity.domain.RefreshToken;
 import com.medical.medcore.identity.domain.Role;
 import com.medical.medcore.identity.domain.User;
@@ -9,6 +10,7 @@ import com.medical.medcore.identity.dto.LoginRequest;
 import com.medical.medcore.identity.dto.UserMeResponse;
 import com.medical.medcore.identity.repository.UserRepository;
 import com.medical.medcore.shared.exception.BadRequestException;
+import com.medical.medcore.platform.service.TenantModuleService;
 import com.medical.medcore.shared.exception.ForbiddenException;
 import com.medical.medcore.shared.exception.NotFoundException;
 import com.medical.medcore.shared.exception.UnauthorizedException;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,9 @@ public class AuthService {
     private final UserAccounts userAccounts;
     private final TokenIssuer tokenIssuer;
     private final RefreshTokenService refreshTokenService;
+    private final TenantModuleService moduleService;
+    private final PlatformRoleGuard platformRoleGuard;
+    private final AccountLookup accountLookup;
 
     @Value("${app.auth.max-failed-attempts:5}")
     private int maxFailedAttempts;
@@ -43,8 +49,7 @@ public class AuthService {
     @Transactional(noRollbackFor = UnauthorizedException.class)
     public AuthResponse login(LoginRequest request) {
         Long tenantId = TenantContext.requireTenantId();
-        String email = PersonRegistry.normalizeEmail(request.email());
-        User user = userRepository.findByEmailAndTenantId(email, tenantId)
+        User user = accountLookup.find(tenantId, request.identifier())
                 .orElseThrow(() -> new UnauthorizedException(CODE_INVALID_CREDENTIALS, INVALID_CREDENTIALS));
 
         LocalDateTime now = LocalDateTime.now();
@@ -60,7 +65,13 @@ public class AuthService {
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new UnauthorizedException(CODE_ACCOUNT_INACTIVE, "Usuario inactivo. Contacte al administrador");
         }
-        user.registerSuccessfulLogin(now);
+        return openSession(user, now);
+    }
+
+    @Transactional
+    public AuthResponse openSession(User user, LocalDateTime moment) {
+        assertCanSignIn(user);
+        user.registerSuccessfulLogin(moment);
         userRepository.save(user);
         return tokenIssuer.issue(user);
     }
@@ -77,6 +88,7 @@ public class AuthService {
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new UnauthorizedException(CODE_ACCOUNT_INACTIVE, "Usuario inactivo");
         }
+        assertCanSignIn(user);
         refreshTokenService.revokeWithGrace(token);
         return tokenIssuer.issue(user);
     }
@@ -89,15 +101,18 @@ public class AuthService {
     @Transactional(readOnly = true)
     public UserMeResponse me() {
         User user = currentUser();
+        List<String> roleCodes = user.getRoles().stream().map(Role::getCode).sorted().toList();
+        List<ProfileField> missing = user.getPerson().missingFields(ProfileField.requiredFor(roleCodes));
         return new UserMeResponse(
                 user.getId(),
                 user.getPerson().getId(),
                 user.getEmail(),
-                user.getRoles().stream().map(Role::getCode).sorted().toList(),
+                roleCodes,
                 user.getPerson().getFirstName(),
                 user.getPerson().getLastName(),
                 user.getTenantId(),
-                Boolean.TRUE.equals(user.getPerson().getProfileCompleted()),
+                missing.isEmpty(),
+                missing,
                 Boolean.TRUE.equals(user.getMustChangePassword()),
                 tokenIssuer.branchIdsOf(user));
     }
@@ -115,6 +130,12 @@ public class AuthService {
         userRepository.save(user);
         refreshTokenService.revokeAll(user.getId(), user.getTenantId());
         return tokenIssuer.issue(user);
+    }
+
+    private void assertCanSignIn(User user) {
+        List<String> roleCodes = user.getRoles().stream().map(Role::getCode).toList();
+        platformRoleGuard.assertAllowed(user.getTenantId(), roleCodes);
+        moduleService.assertCanSignIn(user.getTenantId(), roleCodes);
     }
 
     private User currentUser() {

@@ -4,6 +4,7 @@ import com.medical.medcore.identity.domain.Person;
 import com.medical.medcore.identity.domain.PersonDocument;
 import com.medical.medcore.identity.domain.User;
 import com.medical.medcore.patient.domain.Patient;
+import com.medical.medcore.patient.domain.PortalAccountStatus;
 import com.medical.medcore.patient.dto.PatientProfileResponse;
 import com.medical.medcore.patient.dto.PatientResponse;
 
@@ -35,6 +36,7 @@ public final class PatientMapper {
                 account != null,
                 account != null ? account.getEmail() : null,
                 account != null ? account.getIsActive() : null,
+                PortalAccountStatus.of(account),
                 !Boolean.FALSE.equals(patient.getIsActive()),
                 patient.getCreatedAt());
     }

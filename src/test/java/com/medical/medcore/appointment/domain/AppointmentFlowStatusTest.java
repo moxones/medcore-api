@@ -63,4 +63,33 @@ class AppointmentFlowStatusTest {
         assertThat(AppointmentFlowStatus.PENDING_PAYMENT.isAttended()).isTrue();
         assertThat(AppointmentFlowStatus.IN_PROCESS.isAttended()).isFalse();
     }
+
+    @ParameterizedTest
+    @CsvSource({
+            "SCHEDULED, WAITING",
+            "WAITING, CALLED",
+            "WAITING, PENDING_PAYMENT",
+            "WAITING, COMPLETED",
+            "CALLED, WAITING",
+            "CALLED, PENDING_PAYMENT",
+            "CALLED, COMPLETED",
+            "IN_PROCESS, COMPLETED",
+            "PENDING_PAYMENT, COMPLETED",
+            "PENDING_PAYMENT, WAITING"
+    })
+    void withoutConsultationReceptionClosesTheVisit(AppointmentFlowStatus from, AppointmentFlowStatus to) {
+        assertThat(from.canTransitionTo(to, false)).isTrue();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "SCHEDULED, COMPLETED",
+            "WAITING, IN_PROCESS",
+            "CALLED, IN_PROCESS",
+            "PENDING_PAYMENT, IN_PROCESS",
+            "COMPLETED, WAITING"
+    })
+    void withoutConsultationNothingEntersConsultation(AppointmentFlowStatus from, AppointmentFlowStatus to) {
+        assertThat(from.canTransitionTo(to, false)).isFalse();
+    }
 }

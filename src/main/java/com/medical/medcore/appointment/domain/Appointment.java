@@ -106,6 +106,30 @@ public class Appointment extends AuditableEntity {
     @Column(name = "no_show_at")
     private LocalDateTime noShowAt;
 
+    @Builder.Default
+    @Column(name = "needs_reschedule", nullable = false)
+    private Boolean needsReschedule = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reschedule_cause", length = 30)
+    private RescheduleCause rescheduleCause;
+
+    @Column(name = "reschedule_note", length = 255)
+    private String rescheduleNote;
+
+    @Column(name = "reschedule_flagged_at")
+    private LocalDateTime rescheduleFlaggedAt;
+
+    @Column(name = "schedule_exception_id")
+    private Long scheduleExceptionId;
+
+    @Column(name = "branch_closure_id")
+    private Long branchClosureId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cancellation_origin", length = 20)
+    private CancellationOrigin cancellationOrigin;
+
     public AppointmentFlowStatus flow() {
         return AppointmentFlowStatus.from(flowStatus);
     }
@@ -129,11 +153,56 @@ public class Appointment extends AuditableEntity {
         flowStatus = target.name();
     }
 
-    public void cancel(Long cancelledStatusId, String reasonText, Long userId, LocalDateTime moment) {
+    public void cancel(Long cancelledStatusId, String reasonText, CancellationOrigin origin, Long userId,
+                       LocalDateTime moment) {
         statusId = cancelledStatusId;
         cancelReason = reasonText;
+        cancellationOrigin = origin;
         cancelledAt = moment;
         cancelledBy = userId;
+        needsReschedule = false;
+    }
+
+    public boolean isFlaggedForReschedule() {
+        return Boolean.TRUE.equals(needsReschedule);
+    }
+
+    public void flagForReschedule(RescheduleCause cause, String note, Long exceptionId, Long closureId,
+                                  LocalDateTime moment) {
+        needsReschedule = true;
+        rescheduleCause = cause;
+        rescheduleNote = note != null && note.length() > 255 ? note.substring(0, 255) : note;
+        rescheduleFlaggedAt = moment;
+        scheduleExceptionId = exceptionId;
+        branchClosureId = closureId;
+    }
+
+    public void resolveRescheduleFlag() {
+        needsReschedule = false;
+    }
+
+    public void withdrawRescheduleFlag() {
+        needsReschedule = false;
+        rescheduleCause = null;
+        rescheduleNote = null;
+        rescheduleFlaggedAt = null;
+        scheduleExceptionId = null;
+        branchClosureId = null;
+    }
+
+    public CancellationOrigin defaultCancellationOrigin() {
+        if (!isFlaggedForReschedule() || rescheduleCause == null) {
+            return CancellationOrigin.PATIENT;
+        }
+        return rescheduleCause == RescheduleCause.BRANCH_CLOSURE
+                ? CancellationOrigin.ORGANIZATION
+                : CancellationOrigin.PROFESSIONAL;
+    }
+
+    public void returnToSchedule() {
+        flowStatus = AppointmentFlowStatus.SCHEDULED.name();
+        checkedInAt = null;
+        calledAt = null;
     }
 
     public void markNoShow(Long noShowStatusId, LocalDateTime moment) {

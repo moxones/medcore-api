@@ -15,6 +15,9 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -28,6 +31,7 @@ public class GlobalExceptionHandler {
     private static final String CODE_DATA_CONFLICT = "DATA_CONFLICT";
     private static final String CODE_SLOT_TAKEN = "SLOT_TAKEN";
     private static final String SLOT_CONSTRAINT = "no_overlap_appointments";
+    private static final String CODE_FILE_TOO_LARGE = "FILE_TOO_LARGE";
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponse<Void>> handleApiException(ApiException ex) {
@@ -75,6 +79,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParameter(MissingServletRequestParameterException ex) {
         return error(HttpStatus.BAD_REQUEST, "Falta el parámetro requerido: " + ex.getParameterName(), null);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingPart(MissingServletRequestPartException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Falta el archivo requerido: " + ex.getRequestPartName(), null);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        return error(HttpStatus.BAD_REQUEST, "El archivo supera el tamaño permitido", CODE_FILE_TOO_LARGE);
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMultipart(MultipartException ex) {
+        return error(HttpStatus.BAD_REQUEST, "No se pudo leer el archivo enviado", null);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

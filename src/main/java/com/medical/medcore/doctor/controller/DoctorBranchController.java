@@ -53,6 +53,6 @@ public class DoctorBranchController {
     public ResponseEntity<ApiResponse<List<DoctorBranchResponse>>> listDoctorsByBranch(
             @PathVariable Long branchId) {
         return ResponseEntity.ok(new ApiResponse<>(true,
-                doctorBranchService.listDoctorsByBranch(branchId), "Médicos de la sucursal"));
+                doctorBranchService.listDoctorsByBranch(branchId), "Profesionales de la sucursal"));
     }
 }

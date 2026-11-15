@@ -76,6 +76,18 @@ public class ReceptionCancellationsProvider extends BaseReportProvider implement
             sections.add(new BarsSection("No-show por día", noShowByDay));
         }
 
+        List<Map<String, Object>> originRows = new ArrayList<>();
+        for (Object[] r : appointments.cancellationOrigins(t, q.fromDateTime(), q.toDateTimeExclusive(), bf.apply(), bf.branchIds())) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("origin", originLabel(asString(r[0])));
+            row.put("count", asLong(r[1]));
+            originRows.add(row);
+        }
+        sections.add(new TableSection("Cancelaciones por origen", List.of(
+                ReportColumn.text("origin", "Quién canceló"),
+                ReportColumn.number("count", "Cantidad")
+        ), originRows));
+
         List<Map<String, Object>> reasonRows = new ArrayList<>();
         for (Object[] r : reschedules.reasonBreakdown(t, q.fromDateTime(), q.toDateTimeExclusive(), bf.apply(), bf.branchIds())) {
             Map<String, Object> row = new LinkedHashMap<>();
@@ -91,5 +103,14 @@ public class ReceptionCancellationsProvider extends BaseReportProvider implement
         return new ReportResult(key(), "Ausencias y Cancelaciones",
                 "Los motivos corresponden a reprogramaciones registradas.", generatedAt(),
                 rangeOf(q), kpis, sections);
+    }
+
+    private String originLabel(String origin) {
+        return switch (origin) {
+            case "PATIENT" -> "Paciente";
+            case "PROFESSIONAL" -> "Ausencia del profesional";
+            case "ORGANIZATION" -> "Cierre de la sede";
+            default -> "Sin especificar";
+        };
     }
 }

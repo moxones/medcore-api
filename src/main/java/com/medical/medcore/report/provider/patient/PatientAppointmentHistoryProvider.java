@@ -1,5 +1,7 @@
 package com.medical.medcore.report.provider.patient;
 
+import com.medical.medcore.platform.domain.BusinessType;
+import com.medical.medcore.platform.service.TenantTerminology;
 import com.medical.medcore.report.dto.ReportColumn;
 import com.medical.medcore.report.dto.ReportKpi;
 import com.medical.medcore.report.dto.ReportResult;
@@ -28,6 +30,7 @@ public class PatientAppointmentHistoryProvider extends BaseReportProvider implem
 
     private final ReportingPatientRepository patientReports;
     private final CurrentUserResolver currentUser;
+    private final TenantTerminology terminology;
 
     @Override
     public String key() {
@@ -43,6 +46,7 @@ public class PatientAppointmentHistoryProvider extends BaseReportProvider implem
     public ReportResult generate(ReportQuery q, ReportContext ctx) {
         Long patientId = currentUser.resolvePatientId(ctx);
         Long t = ctx.tenantId();
+        BusinessType terms = terminology.current();
 
         long total = 0, attended = 0, cancelled = 0, doctors = 0;
         List<Object[]> summary = patientReports.appointmentSummary(t, patientId, q.fromDateTime(), q.toDateTimeExclusive());
@@ -58,7 +62,7 @@ public class PatientAppointmentHistoryProvider extends BaseReportProvider implem
                 ReportKpi.of("Citas totales", ReportFormatter.number(total), "event", "blue"),
                 ReportKpi.of("Atendidas", ReportFormatter.number(attended), "task_alt", "green"),
                 ReportKpi.of("Canceladas", ReportFormatter.number(cancelled), "cancel", "orange"),
-                ReportKpi.of("Médicos distintos", ReportFormatter.number(doctors), "stethoscope", "purple")
+                ReportKpi.of(terms.professionalsLabel() + " distintos", ReportFormatter.number(doctors), "stethoscope", "purple")
         );
 
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -72,7 +76,7 @@ public class PatientAppointmentHistoryProvider extends BaseReportProvider implem
         }
         List<ReportSection> sections = List.of(new TableSection("Mis citas", List.of(
                 ReportColumn.date("date", "Fecha"),
-                ReportColumn.text("doctor", "Médico"),
+                ReportColumn.text("doctor", terms.professionalLabel()),
                 ReportColumn.text("specialty", "Especialidad"),
                 ReportColumn.text("status", "Estado")
         ), rows));

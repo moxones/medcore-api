@@ -33,6 +33,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     long countByIsActiveTrue();
 
+    @Query("SELECT u FROM User u WHERE u.tenantId = :tenantId AND u.person.id IN "
+            + "(SELECT d.person.id FROM PersonDocument d WHERE d.tenantId = :tenantId "
+            + "AND UPPER(d.documentNumber) = UPPER(:documentNumber))")
+    List<User> findByDocumentNumber(@Param("tenantId") Long tenantId, @Param("documentNumber") String documentNumber);
+
     @Query("SELECT COUNT(u) > 0 FROM User u JOIN u.roles r WHERE r.code = :roleCode")
     boolean existsByRoleCode(@Param("roleCode") String roleCode);
 }

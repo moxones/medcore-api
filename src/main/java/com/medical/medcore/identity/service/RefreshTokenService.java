@@ -7,7 +7,6 @@ import com.medical.medcore.shared.security.TokenHasher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,7 +81,6 @@ public class RefreshTokenService {
         repository.saveAll(active);
     }
 
-    @Scheduled(cron = "0 0 4 * * *", zone = "America/Lima")
     @Transactional
     public void purgeExpiredAndRevoked() {
         int deleted = repository.deleteExpiredOrRevoked(LocalDateTime.now());

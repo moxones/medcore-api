@@ -9,6 +9,8 @@ import com.medical.medcore.shared.api.ApiResponse;
 import com.medical.medcore.shared.security.annotation.RequireAdminOrSuperAdmin;
 import com.medical.medcore.shared.security.annotation.RequireReception;
 import com.medical.medcore.shared.security.annotation.RequireStaff;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/appointments/{appointmentId}/payments")
 @RequiredArgsConstructor
+@RequireModule(ClinicModule.BILLING)
 public class PaymentController {
 
     private final PaymentService paymentService;

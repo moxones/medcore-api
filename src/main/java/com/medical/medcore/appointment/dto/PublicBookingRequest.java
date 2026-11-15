@@ -18,10 +18,12 @@ public record PublicBookingRequest(
         @NotBlank(message = "El número de documento es obligatorio") @Size(max = 50) String documentNumber,
         LocalDate birthDate,
         @Size(max = 50) String phone,
-        @NotNull(message = "El médico es obligatorio") Long doctorId,
+        @NotNull(message = "El profesional es obligatorio") Long doctorId,
         @NotNull(message = "La sucursal es obligatoria") Long branchId,
         @NotNull(message = "La fecha y hora son obligatorias") LocalDateTime scheduledAt,
         Long appointmentTypeId,
-        @Size(max = 1000) String reason
+        @Size(max = 1000) String reason,
+        @Size(max = 20) String gender,
+        @Size(max = 12) String emailCode
 ) {
 }

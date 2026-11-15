@@ -28,11 +28,13 @@ public class SubscriptionService {
 
     private static final long NO_EXCLUSION = -1L;
     private static final String NOT_FOUND = "Suscripción no encontrada";
+    private static final String STATUS_EXPIRED = "EXPIRED";
 
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionStatusRepository statusRepository;
     private final PlanRepository planRepository;
     private final TenantRepository tenantRepository;
+    private final TenantDirectory directory;
 
     @Transactional
     public SubscriptionResponse create(CreateSubscriptionRequest request) {
@@ -42,7 +44,9 @@ public class SubscriptionService {
         Plan plan = requireActivePlan(request.planId());
         String status = normalizeStatus(request.status());
         validateDates(request.startDate(), request.endDate());
+        expireLapsed(request.tenantId());
         assertSingleActive(request.tenantId(), status, NO_EXCLUSION);
+        directory.evict(request.tenantId());
         return SubscriptionResponse.from(subscriptionRepository.save(Subscription.builder()
                 .tenantId(request.tenantId())
                 .plan(plan)
@@ -66,6 +70,7 @@ public class SubscriptionService {
         subscription.setStartDate(request.startDate());
         subscription.setEndDate(request.endDate());
         subscription.setStatus(status);
+        directory.evict(subscription.getTenantId());
         return SubscriptionResponse.from(subscriptionRepository.save(subscription));
     }
 
@@ -94,6 +99,7 @@ public class SubscriptionService {
             subscription.setEndDate(LocalDate.now());
         }
         subscriptionRepository.save(subscription);
+        directory.evict(subscription.getTenantId());
     }
 
     private Subscription loadVisible(Long id) {
@@ -122,6 +128,17 @@ public class SubscriptionService {
         if (endDate != null && endDate.isBefore(startDate)) {
             throw new BadRequestException("La fecha de fin no puede ser anterior a la de inicio");
         }
+    }
+
+    private void expireLapsed(Long tenantId) {
+        LocalDate today = LocalDate.now();
+        subscriptionRepository.findByTenantIdOrderByStartDateDescIdDesc(tenantId).stream()
+                .filter(Subscription::isActive)
+                .filter(subscription -> subscription.getEndDate() != null && subscription.getEndDate().isBefore(today))
+                .forEach(subscription -> {
+                    subscription.setStatus(STATUS_EXPIRED);
+                    subscriptionRepository.save(subscription);
+                });
     }
 
     private void assertSingleActive(Long tenantId, String status, Long excludeId) {

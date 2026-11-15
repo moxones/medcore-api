@@ -27,13 +27,15 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     @Query("""
             SELECT DISTINCT p FROM Patient p
             JOIN FETCH p.person per
-            JOIN PersonDocument pd ON pd.person.id = per.id
+            LEFT JOIN PersonDocument pd ON pd.person.id = per.id
             WHERE p.tenantId = :tenantId
-              AND pd.documentNumber LIKE :prefix
+              AND (pd.documentNumber LIKE :prefix
+                OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(per.phone, ''), ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE :contains
+                OR p.medicalRecordNumber LIKE :contains)
             ORDER BY p.id DESC
             """)
-    List<Patient> searchByDocumentPrefix(@Param("tenantId") Long tenantId, @Param("prefix") String prefix,
-                                         Pageable pageable);
+    List<Patient> searchByDigits(@Param("tenantId") Long tenantId, @Param("prefix") String prefix,
+                                 @Param("contains") String contains, Pageable pageable);
 
     @Query("""
             SELECT DISTINCT p FROM Patient p

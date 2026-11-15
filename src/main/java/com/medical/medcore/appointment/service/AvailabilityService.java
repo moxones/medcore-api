@@ -10,15 +10,17 @@ import com.medical.medcore.branch.repository.BranchRepository;
 import com.medical.medcore.catalog.domain.AppointmentType;
 import com.medical.medcore.catalog.domain.Specialty;
 import com.medical.medcore.catalog.repository.AppointmentTypeRepository;
+import com.medical.medcore.platform.service.TenantTerminology;
 import com.medical.medcore.doctor.domain.Doctor;
 import com.medical.medcore.doctor.domain.DoctorBranch;
-import com.medical.medcore.doctor.domain.DoctorSchedule;
 import com.medical.medcore.doctor.domain.DoctorSpecialty;
 import com.medical.medcore.doctor.repository.DoctorBranchRepository;
 import com.medical.medcore.doctor.repository.DoctorRepository;
-import com.medical.medcore.doctor.repository.DoctorScheduleRepository;
 import com.medical.medcore.doctor.repository.DoctorSpecialtyRepository;
 import com.medical.medcore.identity.domain.Person;
+import com.medical.medcore.schedule.domain.ScheduleException;
+import com.medical.medcore.schedule.service.WorkWindow;
+import com.medical.medcore.schedule.service.WorkingCalendar;
 import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.shared.exception.NotFoundException;
 import com.medical.medcore.shared.tenancy.TenantContext;
@@ -46,7 +48,6 @@ import java.util.Set;
 public class AvailabilityService {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
-    private static final int DEFAULT_SLOT_MINUTES = 30;
     private static final int MAX_RANGE_DAYS = 62;
     private static final int SUMMARY_HORIZON_DAYS = 30;
 
@@ -54,11 +55,12 @@ public class AvailabilityService {
     private final DoctorRepository doctorRepository;
     private final DoctorBranchRepository doctorBranchRepository;
     private final DoctorSpecialtyRepository doctorSpecialtyRepository;
-    private final DoctorScheduleRepository doctorScheduleRepository;
+    private final WorkingCalendar workingCalendar;
     private final AppointmentRepository appointmentRepository;
     private final AppointmentTypeRepository appointmentTypeRepository;
     private final AppointmentStatuses statuses;
     private final BookingPolicy bookingPolicy;
+    private final TenantTerminology terminology;
 
     public List<TimeSlotResponse> getAvailableSlots(Long doctorId, Long branchId, LocalDate date) {
         Long tenantId = TenantContext.requireTenantId();
@@ -66,16 +68,15 @@ public class AvailabilityService {
         doctorRepository.findByIdAndTenantId(doctorId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Doctor no encontrado"));
 
-        List<DoctorSchedule> schedules = activeOn(
-                doctorScheduleRepository.findActiveByDoctorIdAndBranchIdAndDay(doctorId, branchId, dayIndex(date)), date);
-        if (schedules.isEmpty()) {
+        List<WorkWindow> windows = workingCalendar.windows(doctorId, branchId, date);
+        if (windows.isEmpty()) {
             return List.of();
         }
         BusyCalendar busy = loadBusy(tenantId, List.of(doctorId), date, date);
         List<TimeSlotResponse> slots = new ArrayList<>();
-        for (DoctorSchedule schedule : schedules) {
-            int slotMinutes = slotMinutes(schedule, 0);
-            for (LocalTime start : slotStarts(schedule, slotMinutes)) {
+        for (WorkWindow window : windows) {
+            int slotMinutes = slotMinutes(window, 0);
+            for (LocalTime start : slotStarts(window, slotMinutes)) {
                 if (!bookingPolicy.isBookable(date, start)) {
                     continue;
                 }
@@ -89,6 +90,11 @@ public class AvailabilityService {
 
     public List<DayAvailabilityResponse> getAvailability(Long branchId, LocalDate fromDate, LocalDate toDate,
                                                          Long specialtyId, Long doctorId, Long appointmentTypeId) {
+        return freeSlots(branchId, fromDate, toDate, specialtyId, doctorId, typeDuration(appointmentTypeId));
+    }
+
+    public List<DayAvailabilityResponse> freeSlots(Long branchId, LocalDate fromDate, LocalDate toDate,
+                                                   Long specialtyId, Long doctorId, int durationOverride) {
         Long tenantId = TenantContext.requireTenantId();
         requireBranch(branchId, tenantId);
         if (fromDate.isAfter(toDate)) {
@@ -110,9 +116,7 @@ public class AvailabilityService {
             }
         }
         List<Long> doctorIds = new ArrayList<>(doctors.keySet());
-        int durationOverride = typeDuration(appointmentTypeId);
-        ScheduleIndex schedules = new ScheduleIndex(
-                doctorScheduleRepository.findActiveByDoctorIdInAndBranchId(doctorIds, branchId));
+        WorkingCalendar.Snapshot calendar = workingCalendar.load(doctorIds, branchId, fromDate, toDate);
         BusyCalendar busy = loadBusy(tenantId, doctorIds, fromDate, toDate);
 
         List<DayAvailabilityResponse> result = new ArrayList<>();
@@ -120,9 +124,9 @@ public class AvailabilityService {
             List<AvailabilitySlotResponse> daySlots = new ArrayList<>();
             for (Long id : doctorIds) {
                 Person person = doctors.get(id).getPerson();
-                for (DoctorSchedule schedule : activeOn(schedules.of(id, dayIndex(date)), date)) {
-                    int slotMinutes = slotMinutes(schedule, durationOverride);
-                    for (LocalTime start : slotStarts(schedule, slotMinutes)) {
+                for (WorkWindow window : calendar.windows(id, date)) {
+                    int slotMinutes = slotMinutes(window, durationOverride);
+                    for (LocalTime start : slotStarts(window, slotMinutes)) {
                         LocalTime end = start.plusMinutes(slotMinutes);
                         if (bookingPolicy.isBookable(date, start) && busy.isFree(id, date, start, end)) {
                             daySlots.add(new AvailabilitySlotResponse(
@@ -158,14 +162,13 @@ public class AvailabilityService {
         }
         LocalDate today = bookingPolicy.today();
         LocalDate horizon = today.plusDays(SUMMARY_HORIZON_DAYS);
-        ScheduleIndex schedules = new ScheduleIndex(
-                doctorScheduleRepository.findActiveByDoctorIdInAndBranchId(doctorIds, branchId));
+        WorkingCalendar.Snapshot calendar = workingCalendar.load(doctorIds, branchId, today, horizon);
         BusyCalendar busy = loadBusy(tenantId, doctorIds, today, horizon);
 
         List<SpecialtySummaryResponse> result = new ArrayList<>();
         doctorsBySpecialty.forEach((specialtyId, ids) -> {
             Specialty specialty = specialties.get(specialtyId);
-            String nextDate = firstAvailableDate(ids, today, horizon, schedules, busy)
+            String nextDate = firstAvailableDate(ids, today, horizon, calendar, busy)
                     .map(LocalDate::toString)
                     .orElse(null);
             result.add(new SpecialtySummaryResponse(specialtyId, specialty.getCode(), specialty.getName(),
@@ -177,34 +180,47 @@ public class AvailabilityService {
     }
 
     public int resolveDuration(Long doctorId, Long branchId, LocalDateTime start, int requestedMinutes) {
-        DoctorSchedule window = requireWindow(doctorId, branchId, start, requestedMinutes);
+        WorkWindow window = requireWindow(doctorId, branchId, start, requestedMinutes);
         return requestedMinutes > 0 ? requestedMinutes : slotMinutes(window, 0);
     }
 
-    private DoctorSchedule requireWindow(Long doctorId, Long branchId, LocalDateTime start, int requestedMinutes) {
+    private WorkWindow requireWindow(Long doctorId, Long branchId, LocalDateTime start, int requestedMinutes) {
         LocalDate date = start.toLocalDate();
         LocalTime time = start.toLocalTime();
-        return activeOn(doctorScheduleRepository.findActiveByDoctorIdAndBranchIdAndDay(doctorId, branchId, dayIndex(date)), date)
-                .stream()
-                .filter(schedule -> fits(schedule, time, requestedMinutes > 0 ? requestedMinutes : slotMinutes(schedule, 0)))
+        WorkingCalendar.Snapshot calendar = workingCalendar.load(List.of(doctorId), branchId, date, date);
+        return calendar.windows(doctorId, date).stream()
+                .filter(window -> window.fits(time, requestedMinutes > 0 ? requestedMinutes : slotMinutes(window, 0)))
                 .findFirst()
-                .orElseThrow(() -> new BadRequestException("OUTSIDE_SCHEDULE",
-                        "El horario seleccionado está fuera del horario de atención del médico en esta sucursal"));
+                .orElseThrow(() -> outsideSchedule(calendar, doctorId, date, time));
     }
 
-    private boolean fits(DoctorSchedule schedule, LocalTime start, int minutes) {
-        long startOffset = ChronoUnit.MINUTES.between(schedule.getStartTime(), start);
-        long available = ChronoUnit.MINUTES.between(start, schedule.getEndTime());
-        return startOffset >= 0 && available >= minutes;
+    private BadRequestException outsideSchedule(WorkingCalendar.Snapshot calendar, Long doctorId, LocalDate date,
+                                                LocalTime time) {
+        boolean inTemplate = calendar.templateWindows(doctorId, date).stream()
+                .anyMatch(window -> !time.isBefore(window.start()) && time.isBefore(window.end()));
+        if (inTemplate && calendar.closure(date).isPresent()) {
+            return new BadRequestException("BRANCH_CLOSED",
+                    "La sede no atiende el " + date + " (" + calendar.closure(date).get().getName() + ")");
+        }
+        boolean blocked = calendar.exceptions(doctorId, date).stream()
+                .filter(ScheduleException::isBlock)
+                .anyMatch(exception -> exception.isFullDay()
+                        || (!time.isBefore(exception.getStartTime()) && time.isBefore(exception.getEndTime())));
+        if (inTemplate && blocked) {
+            return new BadRequestException("PROFESSIONAL_UNAVAILABLE",
+                    "El profesional registró una ausencia en ese horario");
+        }
+        return new BadRequestException("OUTSIDE_SCHEDULE",
+                "El horario seleccionado está fuera del horario de atención del profesional en esta sucursal");
     }
 
     private Optional<LocalDate> firstAvailableDate(Set<Long> doctorIds, LocalDate from, LocalDate to,
-                                                   ScheduleIndex schedules, BusyCalendar busy) {
+                                                   WorkingCalendar.Snapshot calendar, BusyCalendar busy) {
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
             for (Long doctorId : doctorIds) {
-                for (DoctorSchedule schedule : activeOn(schedules.of(doctorId, dayIndex(date)), date)) {
-                    int slotMinutes = slotMinutes(schedule, 0);
-                    for (LocalTime start : slotStarts(schedule, slotMinutes)) {
+                for (WorkWindow window : calendar.windows(doctorId, date)) {
+                    int slotMinutes = slotMinutes(window, 0);
+                    for (LocalTime start : slotStarts(window, slotMinutes)) {
                         if (bookingPolicy.isBookable(date, start)
                                 && busy.isFree(doctorId, date, start, start.plusMinutes(slotMinutes))) {
                             return Optional.of(date);
@@ -244,28 +260,17 @@ public class AvailabilityService {
         return new BusyCalendar(existing);
     }
 
-    private List<DoctorSchedule> activeOn(List<DoctorSchedule> schedules, LocalDate date) {
-        return schedules.stream()
-                .filter(schedule -> schedule.getValidFrom() == null || !date.isBefore(schedule.getValidFrom()))
-                .filter(schedule -> schedule.getValidUntil() == null || !date.isAfter(schedule.getValidUntil()))
-                .toList();
-    }
-
-    private List<LocalTime> slotStarts(DoctorSchedule schedule, int slotMinutes) {
+    private List<LocalTime> slotStarts(WorkWindow window, int slotMinutes) {
         List<LocalTime> starts = new ArrayList<>();
-        long windowMinutes = ChronoUnit.MINUTES.between(schedule.getStartTime(), schedule.getEndTime());
+        long windowMinutes = window.minutes();
         for (long offset = 0; offset + slotMinutes <= windowMinutes; offset += slotMinutes) {
-            starts.add(schedule.getStartTime().plusMinutes(offset));
+            starts.add(window.start().plusMinutes(offset));
         }
         return starts;
     }
 
-    private int slotMinutes(DoctorSchedule schedule, int override) {
-        if (override > 0) {
-            return override;
-        }
-        Integer configured = schedule.getSlotDurationMinutes();
-        return configured != null && configured > 0 ? configured : DEFAULT_SLOT_MINUTES;
+    private int slotMinutes(WorkWindow window, int override) {
+        return override > 0 ? override : window.slotMinutes();
     }
 
     private int typeDuration(Long appointmentTypeId) {
@@ -283,13 +288,8 @@ public class AvailabilityService {
                 .orElseThrow(() -> new NotFoundException("Sucursal no encontrada"));
     }
 
-    private int dayIndex(LocalDate date) {
-        return date.getDayOfWeek().getValue() - 1;
-    }
-
     private String doctorDisplayName(Person person) {
-        String prefix = "F".equalsIgnoreCase(person.getGender()) ? "Dra." : "Dr.";
-        return prefix + " " + person.fullName();
+        return terminology.professionalName(person);
     }
 
     private String initials(Person person) {
@@ -298,24 +298,6 @@ public class AvailabilityService {
 
     private String initial(String value) {
         return value == null || value.isBlank() ? "" : value.trim().substring(0, 1).toUpperCase();
-    }
-
-    private static final class ScheduleIndex {
-
-        private final Map<Long, Map<Integer, List<DoctorSchedule>>> byDoctorAndDay = new HashMap<>();
-
-        private ScheduleIndex(List<DoctorSchedule> schedules) {
-            for (DoctorSchedule schedule : schedules) {
-                byDoctorAndDay
-                        .computeIfAbsent(schedule.getDoctor().getId(), key -> new HashMap<>())
-                        .computeIfAbsent(schedule.getDayOfWeek(), key -> new ArrayList<>())
-                        .add(schedule);
-            }
-        }
-
-        private List<DoctorSchedule> of(Long doctorId, int dayOfWeek) {
-            return byDoctorAndDay.getOrDefault(doctorId, Map.of()).getOrDefault(dayOfWeek, List.of());
-        }
     }
 
     private static final class BusyCalendar {

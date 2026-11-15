@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 public record CreateAppointmentRequest(
         Long patientId,
-        @NotNull(message = "El médico es obligatorio") Long doctorId,
+        @NotNull(message = "El profesional es obligatorio") Long doctorId,
         @NotNull(message = "La sucursal es obligatoria") Long branchId,
         @NotNull(message = "La fecha y hora son obligatorias") LocalDateTime scheduledAt,
         Long appointmentTypeId,

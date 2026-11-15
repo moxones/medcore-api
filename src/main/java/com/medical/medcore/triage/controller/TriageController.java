@@ -6,6 +6,8 @@ import com.medical.medcore.triage.dto.TriageRequest;
 import com.medical.medcore.triage.dto.TriageResponse;
 import com.medical.medcore.triage.dto.TriageSummaryResponse;
 import com.medical.medcore.triage.service.TriageService;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -24,6 +26,7 @@ import java.util.List;
 @RequestMapping("/triage")
 @RequiredArgsConstructor
 @RequireClinicalStaff
+@RequireModule(ClinicModule.TRIAGE)
 public class TriageController {
 
     private final TriageService triageService;

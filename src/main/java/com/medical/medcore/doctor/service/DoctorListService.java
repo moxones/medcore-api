@@ -3,6 +3,7 @@ package com.medical.medcore.doctor.service;
 import com.medical.medcore.doctor.domain.Doctor;
 import com.medical.medcore.doctor.domain.DoctorSchedule;
 import com.medical.medcore.platform.domain.Tenant;
+import com.medical.medcore.platform.service.TenantTerminology;
 
 import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.doctor.dto.DoctorBranchScheduleResponse;
@@ -38,6 +39,7 @@ public class DoctorListService {
     private final DoctorBranchRepository doctorBranchRepository;
     private final DoctorScheduleRepository doctorScheduleRepository;
     private final AppointmentRepository appointmentRepository;
+    private final TenantTerminology terminology;
 
     @Transactional(readOnly = true)
     public PageableResponse<DoctorCardResponse> findCards(
@@ -112,7 +114,7 @@ public class DoctorListService {
         Long doctorId = doctor.getId();
         String firstName = doctor.getPerson().getFirstName();
         String lastName = doctor.getPerson().getLastName();
-        String fullName = "Dr. " + (firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "");
+        String fullName = terminology.professionalName(doctor.getPerson());
         String initials = initial(firstName) + initial(lastName);
 
         int seniorityYears = doctor.getCreatedAt() != null

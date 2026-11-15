@@ -4,6 +4,7 @@ import com.medical.medcore.identity.domain.Person;
 import com.medical.medcore.identity.domain.PersonDocument;
 import com.medical.medcore.identity.domain.Role;
 import com.medical.medcore.identity.domain.User;
+import com.medical.medcore.identity.dto.InvitationResponse;
 import com.medical.medcore.identity.dto.PersonRequest;
 import com.medical.medcore.identity.dto.PersonResponse;
 import com.medical.medcore.identity.dto.UserResponse;
@@ -18,6 +19,10 @@ public final class UserMapper {
     }
 
     public static UserResponse toResponse(User user) {
+        return toResponse(user, null);
+    }
+
+    public static UserResponse toResponse(User user, InvitationResponse invitation) {
         List<Role> roles = user.getRoles() == null
                 ? List.of()
                 : user.getRoles().stream().sorted(Comparator.comparing(Role::getId)).toList();
@@ -31,7 +36,9 @@ public final class UserMapper {
                 user.getTenantId(),
                 user.getCreatedAt(),
                 user.getLastLoginAt(),
-                user.isLockedAt(LocalDateTime.now()));
+                user.isLockedAt(LocalDateTime.now()),
+                user.isPendingActivation(),
+                invitation);
     }
 
     public static PersonResponse toPersonResponse(Person person) {

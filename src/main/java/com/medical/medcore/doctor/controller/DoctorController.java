@@ -48,30 +48,30 @@ public class DoctorController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.ok(
-                doctorListService.findCards(branchId, specialtyId, isActive, availableToday, page, size), "Médicos");
+                doctorListService.findCards(branchId, specialtyId, isActive, availableToday, page, size), "Profesionales");
     }
 
     @RequireDoctor
     @GetMapping("/me")
     public ApiResponse<DoctorSelfResponse> findMe() {
-        return ApiResponse.ok(doctorService.getMyProfile(), "Mi perfil de médico");
+        return ApiResponse.ok(doctorService.getMyProfile(), "Mi perfil profesional");
     }
 
     @GetMapping("/{id}")
     public ApiResponse<DoctorResponse> findById(@PathVariable Long id) {
-        return ApiResponse.ok(doctorService.findById(id), "Médico");
+        return ApiResponse.ok(doctorService.findById(id), "Profesional");
     }
 
     @RequireAdminOrSuperAdmin
     @PostMapping
     public ApiResponse<DoctorResponse> create(@Valid @RequestBody DoctorRequest request) {
-        return ApiResponse.ok(doctorService.create(request), "Médico creado");
+        return ApiResponse.ok(doctorService.create(request), "Profesional registrado");
     }
 
     @RequireAdminOrSuperAdmin
     @PutMapping("/{id}")
     public ApiResponse<DoctorResponse> update(@PathVariable Long id, @Valid @RequestBody DoctorRequest request) {
-        return ApiResponse.ok(doctorService.update(id, request), "Médico actualizado");
+        return ApiResponse.ok(doctorService.update(id, request), "Profesional actualizado");
     }
 
     @RequireAdminOrSuperAdmin
@@ -81,9 +81,9 @@ public class DoctorController {
         List<AppointmentResponse> pending = appointmentService.findPendingByDoctor(id);
         if (!pending.isEmpty()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiResponse<>(
-                    false, pending, "El médico tiene citas pendientes", CODE_PENDING_APPOINTMENTS));
+                    false, pending, "El profesional tiene citas pendientes", CODE_PENDING_APPOINTMENTS));
         }
         doctorService.deactivate(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, null, "Médico desactivado"));
+        return ResponseEntity.ok(new ApiResponse<>(true, null, "Profesional desactivado"));
     }
 }

@@ -6,6 +6,8 @@ import com.medical.medcore.catalog.repository.Cie10CodeRepository;
 import com.medical.medcore.shared.security.annotation.RequireStaff;
 import com.medical.medcore.shared.api.ApiResponse;
 import com.medical.medcore.shared.api.PageableResponse;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/cie10")
 @RequiredArgsConstructor
 @RequireStaff
+@RequireModule(ClinicModule.CONSULTATION)
 public class Cie10Controller {
 
     private final Cie10CodeRepository cie10CodeRepository;

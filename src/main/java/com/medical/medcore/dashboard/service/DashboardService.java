@@ -226,10 +226,10 @@ public class DashboardService {
         User user = userRepository.findByIdAndTenantId(userId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Usuario no encontrado"));
         if (user.getPerson() == null) {
-            throw new AccessDeniedException("El usuario no tiene un médico asociado");
+            throw new AccessDeniedException("El usuario no tiene un perfil profesional asociado");
         }
         return doctorRepository.findByPersonIdAndTenantId(user.getPerson().getId(), tenantId)
-                .orElseThrow(() -> new AccessDeniedException("El usuario no tiene un médico asociado"));
+                .orElseThrow(() -> new AccessDeniedException("El usuario no tiene un perfil profesional asociado"));
     }
 
     private long countByStage(List<DoctorAgendaItemResponse> agenda, CareStage stage) {

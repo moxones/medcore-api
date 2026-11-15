@@ -1,5 +1,6 @@
 package com.medical.medcore.platform.service;
 
+import com.medical.medcore.platform.domain.ClinicModule;
 import com.medical.medcore.platform.domain.TenantProcessConfig;
 import com.medical.medcore.platform.domain.ClinicProcess;
 import com.medical.medcore.platform.repository.TenantProcessConfigRepository;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +19,7 @@ import java.util.Map;
 public class TenantProcessConfigService {
 
     private final TenantProcessConfigRepository repository;
+    private final TenantModuleService moduleService;
 
     public Map<ClinicProcess, Boolean> getConfig() {
         Long tenantId = TenantContext.requireTenantId();
@@ -50,7 +53,7 @@ public class TenantProcessConfigService {
     private Map<ClinicProcess, Boolean> resolve(Long tenantId) {
         Map<ClinicProcess, Boolean> result = new EnumMap<>(ClinicProcess.class);
         for (ClinicProcess process : ClinicProcess.values()) {
-            result.put(process, true);
+            result.put(process, process.activeByDefault());
         }
         for (TenantProcessConfig config : repository.findByTenantId(tenantId)) {
             try {
@@ -58,6 +61,8 @@ public class TenantProcessConfigService {
             } catch (IllegalArgumentException ignored) {
             }
         }
+        Set<ClinicModule> modules = moduleService.enabled(tenantId);
+        result.replaceAll((process, active) -> active && process.availableWith(modules));
         return result;
     }
 }

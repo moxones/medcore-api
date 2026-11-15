@@ -12,7 +12,6 @@ import com.medical.medcore.identity.domain.User;
 import com.medical.medcore.identity.repository.UserRepository;
 import com.medical.medcore.patient.domain.Patient;
 import com.medical.medcore.patient.repository.PatientRepository;
-import com.medical.medcore.shared.audit.ClinicalAuditContext;
 import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.shared.exception.ConflictException;
 import com.medical.medcore.shared.exception.NotFoundException;
@@ -55,11 +54,9 @@ public class TriageService {
     private final PatientRepository patientRepository;
     private final UserRepository userRepository;
     private final BookingPolicy bookingPolicy;
-    private final ClinicalAuditContext clinicalAuditContext;
 
     @Transactional
     public TriageResponse create(TriageRequest request) {
-        clinicalAuditContext.apply();
         Appointment appointment = appointmentService.loadAccessible(request.appointmentId());
         appointmentService.assertScheduled(appointment);
         AppointmentFlowStatus flow = appointment.flow();

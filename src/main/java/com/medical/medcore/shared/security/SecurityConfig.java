@@ -70,7 +70,7 @@ public class SecurityConfig {
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("Authorization", "Cache-Control", "Content-Type",
-                "Accept", "Origin", "X-Requested-With", "X-Tenant-ID"));
+                "Accept", "Origin", "X-Requested-With", "X-Tenant-ID", "X-Refresh-Transport", "X-Recaptcha-Token"));
         config.setExposedHeaders(List.of("Content-Disposition"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

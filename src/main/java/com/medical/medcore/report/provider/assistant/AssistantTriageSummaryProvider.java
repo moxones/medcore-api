@@ -1,5 +1,6 @@
 package com.medical.medcore.report.provider.assistant;
 
+import com.medical.medcore.platform.domain.ClinicModule;
 import com.medical.medcore.report.dto.BarsSection;
 import com.medical.medcore.report.dto.ReportBar;
 import com.medical.medcore.report.dto.ReportColumn;
@@ -39,6 +40,11 @@ public class AssistantTriageSummaryProvider extends BaseReportProvider implement
     @Override
     public Set<String> allowedRoles() {
         return Set.of(RoleConstants.ASSISTANT);
+    }
+
+    @Override
+    public Set<ClinicModule> requiredModules() {
+        return Set.of(ClinicModule.TRIAGE);
     }
 
     @Override

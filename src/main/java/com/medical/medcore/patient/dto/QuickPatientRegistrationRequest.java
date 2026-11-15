@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
+
 public record QuickPatientRegistrationRequest(
         @Size(max = 100) String firstName,
         @Size(max = 100) String lastName,
@@ -12,6 +14,8 @@ public record QuickPatientRegistrationRequest(
         @NotBlank(message = "El email es obligatorio") @Email(message = "Email inválido") @Size(max = 150) String email,
         @NotBlank(message = "La contraseña es obligatoria")
         @Size(min = 8, max = 72, message = "La contraseña debe tener entre 8 y 72 caracteres") String password,
-        @Size(max = 50) String phone
+        @Size(max = 50) String phone,
+        LocalDate birthDate,
+        @Size(max = 12) String emailCode
 ) {
 }

@@ -5,6 +5,7 @@ import com.medical.medcore.identity.domain.Role;
 import com.medical.medcore.identity.domain.User;
 import com.medical.medcore.identity.dto.CreateSuperAdminUserRequest;
 import com.medical.medcore.identity.dto.CreateUserRequest;
+import com.medical.medcore.identity.dto.InvitationResponse;
 import com.medical.medcore.identity.dto.PersonRequest;
 import com.medical.medcore.identity.dto.RoleResponse;
 import com.medical.medcore.identity.dto.UpdateUserRequest;
@@ -16,6 +17,8 @@ import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.shared.exception.ConflictException;
 import com.medical.medcore.shared.exception.ForbiddenException;
 import com.medical.medcore.shared.exception.NotFoundException;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.platform.service.TenantModuleService;
 import com.medical.medcore.shared.security.RoleConstants;
 import com.medical.medcore.shared.security.SecurityUtils;
 import com.medical.medcore.shared.tenancy.TenantContext;
@@ -47,6 +50,10 @@ public class UserService {
     private final UserAccounts userAccounts;
     private final RefreshTokenService refreshTokenService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TenantModuleService moduleService;
+    private final PlatformRoleGuard platformRoleGuard;
+    private final OnboardingGate onboardingGate;
+    private final AccountActivationService activationService;
 
     @Transactional
     public UserResponse create(CreateUserRequest request) {
@@ -82,8 +89,10 @@ public class UserService {
     }
 
     public List<RoleResponse> listAssignableRoles() {
+        Set<ClinicModule> modules = moduleService.current();
         return roleRepository.findAll().stream()
                 .filter(role -> SecurityUtils.isSuperAdmin() || !PRIVILEGED_ROLES.contains(role.getCode()))
+                .filter(role -> moduleService.isRoleAvailable(role.getCode(), modules))
                 .sorted(Comparator.comparing(Role::getId))
                 .map(role -> new RoleResponse(role.getId(), role.getCode(), role.getName()))
                 .toList();
@@ -136,10 +145,14 @@ public class UserService {
         user.changePassword(userAccounts.encode(newPassword), LocalDateTime.now(), resetByAnotherUser);
         userRepository.save(user);
         refreshTokenService.revokeAll(user.getId(), user.getTenantId());
+        onboardingGate.forget(user.getTenantId(), user.getId());
     }
 
     private UserResponse createAccount(Long tenantId, String email, String password, PersonRequest personRequest,
                                        Set<Role> roles) {
+        List<String> roleCodes = roles.stream().map(Role::getCode).toList();
+        platformRoleGuard.assertAllowed(tenantId, roleCodes);
+        moduleService.assertRolesAvailable(tenantId, roleCodes);
         String normalizedEmail = userAccounts.requireEmail(email);
         userAccounts.assertEmailAvailable(normalizedEmail, tenantId);
         PersonData data = UserMapper.toPersonData(personRequest, normalizedEmail);
@@ -151,9 +164,33 @@ public class UserService {
         Person person = personRegistry.findByDocument(tenantId, data.documentTypeCode(), data.documentNumber())
                 .map(existing -> reuseExistingPerson(existing, tenantId))
                 .orElseGet(() -> personRegistry.create(tenantId, data));
+        if (password == null || password.isBlank()) {
+            User invited = userAccounts.createPendingActivation(tenantId, person, normalizedEmail, roles);
+            publishRoles(invited);
+            return UserMapper.toResponse(invited, invite(invited));
+        }
         User user = userAccounts.create(tenantId, person, normalizedEmail, password, roles);
+        user.setMustChangePassword(true);
         publishRoles(user);
         return UserMapper.toResponse(user);
+    }
+
+    /** Reenvía el enlace de activación a una cuenta creada por invitación que todavía no se activó. */
+    @Transactional
+    public UserResponse resendInvitation(Long id) {
+        User user = loadManageable(id, false);
+        if (!user.isPendingActivation()) {
+            throw new ConflictException("ACCOUNT_ALREADY_ACTIVE", "Este usuario ya activó su cuenta");
+        }
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new ConflictException("ACCOUNT_INACTIVE", "Activa el usuario antes de reenviarle la invitación");
+        }
+        return UserMapper.toResponse(user, invite(user));
+    }
+
+    private InvitationResponse invite(User user) {
+        AccountActivationService.ActivationTicket ticket = activationService.issue(user, null);
+        return new InvitationResponse(user.getEmail(), ticket.expiresAt(), ticket.delivered(), ticket.token());
     }
 
     private Person reuseExistingPerson(Person existing, Long tenantId) {
@@ -183,7 +220,11 @@ public class UserService {
         }
         assertNotSelf(user, "No puedes modificar tus propios roles");
         assertCanGrant(roles);
+        List<String> roleCodes = roles.stream().map(Role::getCode).toList();
+        platformRoleGuard.assertAllowed(user.getTenantId(), roleCodes);
+        moduleService.assertRolesAvailable(user.getTenantId(), roleCodes);
         user.setRoles(new HashSet<>(roles));
+        onboardingGate.forget(user.getTenantId(), user.getId());
         publishRoles(user);
     }
 

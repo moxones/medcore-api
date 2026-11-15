@@ -27,7 +27,7 @@ public class PublicBookingService {
         PatientRegistrationService.Registration registration = registrationService.register(
                 new PatientSelfRegistrationRequest(request.firstName(), request.lastName(), request.birthDate(),
                         request.phone(), request.documentTypeCode(), request.documentNumber(),
-                        request.email(), request.password()));
+                        request.email(), request.password(), request.gender(), request.emailCode()));
         Patient patient = registration.patient();
         AuthResponse session = registration.session();
         Appointment appointment = appointmentService.book(tenantId, patient, request.doctorId(), request.branchId(),

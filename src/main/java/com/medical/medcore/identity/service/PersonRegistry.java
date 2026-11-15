@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -25,6 +26,12 @@ public class PersonRegistry {
     private static final Pattern DNI_PATTERN = Pattern.compile("^\\d{8}$");
     private static final Pattern GENERIC_DOCUMENT_PATTERN = Pattern.compile("^[A-Za-z0-9-]{5,20}$");
     private static final int MAX_NAME_LENGTH = 100;
+    private static final int MAX_AGE_YEARS = 120;
+    private static final Pattern PHONE_PATTERN = Pattern.compile("^\\+?\\(?[0-9][0-9 ()-]{5,19}$");
+    private static final Map<String, String> GENDER_ALIASES = Map.ofEntries(
+            Map.entry("M", "M"), Map.entry("MALE", "M"), Map.entry("MASCULINO", "M"),
+            Map.entry("F", "F"), Map.entry("FEMALE", "F"), Map.entry("FEMENINO", "F"),
+            Map.entry("OTHER", "OTHER"), Map.entry("OTRO", "OTHER"), Map.entry("O", "OTHER"));
 
     private final PersonRepository personRepository;
     private final PersonDocumentRepository personDocumentRepository;
@@ -53,8 +60,8 @@ public class PersonRegistry {
                 .firstName(cleanName(data.firstName()))
                 .lastName(cleanName(data.lastName()))
                 .birthDate(validBirthDate(data.birthDate()))
-                .gender(clean(data.gender()))
-                .phone(clean(data.phone()))
+                .gender(normalizeGender(data.gender()))
+                .phone(validPhone(data.phone()))
                 .contactEmail(normalizeEmail(data.contactEmail()))
                 .address(clean(data.address()))
                 .district(clean(data.district()))
@@ -84,10 +91,10 @@ public class PersonRegistry {
             person.setBirthDate(validBirthDate(data.birthDate()));
         }
         if (data.gender() != null) {
-            person.setGender(clean(data.gender()));
+            person.setGender(normalizeGender(data.gender()));
         }
         if (data.phone() != null) {
-            person.setPhone(clean(data.phone()));
+            person.setPhone(validPhone(data.phone()));
         }
         if (data.contactEmail() != null) {
             person.setContactEmail(normalizeEmail(data.contactEmail()));
@@ -175,10 +182,37 @@ public class PersonRegistry {
     }
 
     private LocalDate validBirthDate(LocalDate birthDate) {
-        if (birthDate != null && birthDate.isAfter(LocalDate.now())) {
+        if (birthDate == null) {
+            return null;
+        }
+        LocalDate today = LocalDate.now();
+        if (birthDate.isAfter(today)) {
             throw new BadRequestException("La fecha de nacimiento no puede ser futura");
         }
+        if (birthDate.isBefore(today.minusYears(MAX_AGE_YEARS))) {
+            throw new BadRequestException("La fecha de nacimiento no es válida");
+        }
         return birthDate;
+    }
+
+    private String normalizeGender(String value) {
+        String cleaned = clean(value);
+        if (cleaned == null) {
+            return null;
+        }
+        String normalized = GENDER_ALIASES.get(cleaned.toUpperCase());
+        if (normalized == null) {
+            throw new BadRequestException("INVALID_GENDER", "El sexo debe ser M, F u OTHER");
+        }
+        return normalized;
+    }
+
+    private String validPhone(String value) {
+        String cleaned = clean(value);
+        if (cleaned != null && !PHONE_PATTERN.matcher(cleaned).matches()) {
+            throw new BadRequestException("INVALID_PHONE", "El teléfono debe tener entre 6 y 20 dígitos");
+        }
+        return cleaned;
     }
 
     private String cleanName(String value) {

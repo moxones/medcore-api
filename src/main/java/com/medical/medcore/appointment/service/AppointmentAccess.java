@@ -60,7 +60,7 @@ public class AppointmentAccess {
         }
         Long ownDoctorId = currentDoctor()
                 .map(Doctor::getId)
-                .orElseThrow(() -> new ForbiddenException("NO_DOCTOR_PROFILE", "Tu usuario no tiene un perfil de médico"));
+                .orElseThrow(() -> new ForbiddenException("NO_DOCTOR_PROFILE", "Tu usuario no tiene un perfil profesional"));
         if (requestedDoctorId != null && !requestedDoctorId.equals(ownDoctorId)) {
             throw new ForbiddenException("Solo puedes consultar tu propia agenda");
         }

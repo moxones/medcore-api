@@ -174,15 +174,15 @@ public class DoctorScheduleService {
 
     private DoctorBranch loadAndValidateDoctorBranch(Long doctorBranchId, Long doctorId, Long tenantId) {
         DoctorBranch db = doctorBranchRepository.findByIdFetchAll(doctorBranchId)
-                .orElseThrow(() -> new NotFoundException("Vinculación médico-sucursal no encontrada"));
+                .orElseThrow(() -> new NotFoundException("El profesional no está vinculado a esta sucursal"));
         if (!db.getDoctor().getId().equals(doctorId)) {
-            throw new NotFoundException("Vinculación médico-sucursal no encontrada");
+            throw new NotFoundException("El profesional no está vinculado a esta sucursal");
         }
         if (!Boolean.TRUE.equals(db.getIsActive())) {
-            throw new BadRequestException("El médico no está activo en esta sucursal");
+            throw new BadRequestException("El profesional no está activo en esta sucursal");
         }
         if (!db.getBranch().getTenantId().equals(tenantId)) {
-            throw new NotFoundException("Vinculación médico-sucursal no encontrada");
+            throw new NotFoundException("El profesional no está vinculado a esta sucursal");
         }
         return db;
     }

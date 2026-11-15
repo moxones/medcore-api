@@ -16,6 +16,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     Optional<Subscription> findFirstByTenantIdOrderByEndDateDesc(Long tenantId);
 
+    Optional<Subscription> findFirstByTenantIdOrderByStartDateDescIdDesc(Long tenantId);
+
     Optional<Subscription> findByIdAndTenantId(Long id, Long tenantId);
 
     List<Subscription> findByTenantIdOrderByStartDateDescIdDesc(Long tenantId);

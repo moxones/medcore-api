@@ -35,6 +35,11 @@ public record AppointmentResponse(
         BigDecimal amount,
         String cancelReason,
         LocalDateTime cancelledAt,
-        LocalDateTime noShowAt
+        LocalDateTime noShowAt,
+        Boolean needsReschedule,
+        String rescheduleCause,
+        String rescheduleNote,
+        LocalDateTime rescheduleFlaggedAt,
+        String cancellationOrigin
 ) {
 }

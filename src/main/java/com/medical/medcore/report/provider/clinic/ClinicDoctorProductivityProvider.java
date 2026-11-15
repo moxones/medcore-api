@@ -1,5 +1,7 @@
 package com.medical.medcore.report.provider.clinic;
 
+import com.medical.medcore.platform.domain.BusinessType;
+import com.medical.medcore.platform.service.TenantTerminology;
 import com.medical.medcore.report.dto.BarsSection;
 import com.medical.medcore.report.dto.ReportBar;
 import com.medical.medcore.report.dto.ReportColumn;
@@ -35,6 +37,7 @@ public class ClinicDoctorProductivityProvider extends BaseReportProvider impleme
 
     private final ReportingAppointmentRepository appointments;
     private final ReportingPaymentRepository payments;
+    private final TenantTerminology terminology;
 
     @Override
     public String key() {
@@ -50,6 +53,7 @@ public class ClinicDoctorProductivityProvider extends BaseReportProvider impleme
     public ReportResult generate(ReportQuery q, ReportContext ctx) {
         BranchFilter bf = resolveBranches(q, ctx);
         Long t = ctx.tenantId();
+        BusinessType terms = terminology.current();
         Long doctorId = q.doctorId() != null ? q.doctorId() : ALL_DOCTORS;
 
         List<Object[]> rows = appointments.doctorProductivity(
@@ -69,7 +73,7 @@ public class ClinicDoctorProductivityProvider extends BaseReportProvider impleme
                 t, q.fromDateTime(), q.toDateTimeExclusive(), bf.apply(), bf.branchIds(), doctorId);
 
         List<ReportKpi> kpis = List.of(
-                ReportKpi.of("Médicos activos", ReportFormatter.number(activeDoctors), "stethoscope", "blue"),
+                ReportKpi.of(terms.professionalsLabel() + " activos", ReportFormatter.number(activeDoctors), "stethoscope", "blue"),
                 ReportKpi.of("Consultas atendidas", ReportFormatter.number(totalCompleted), "task_alt", "green"),
                 ReportKpi.of("Tiempo prom. consulta", ReportFormatter.minutes(Math.round(avgMinutes != null ? avgMinutes : 0)), "timer", "purple"),
                 ReportKpi.of("Ingresos generados", ReportFormatter.currency(totalRevenue), "payments", "orange")
@@ -85,7 +89,7 @@ public class ClinicDoctorProductivityProvider extends BaseReportProvider impleme
                 })
                 .toList();
         if (!consultBars.isEmpty()) {
-            sections.add(new BarsSection("Consultas por médico", consultBars));
+            sections.add(new BarsSection("Atenciones por " + terms.professional(), consultBars));
         }
 
         List<Map<String, Object>> ranking = new ArrayList<>();
@@ -97,14 +101,14 @@ public class ClinicDoctorProductivityProvider extends BaseReportProvider impleme
             row.put("revenue", revenueByDoctor.getOrDefault(asLong(r[0]), BigDecimal.ZERO));
             ranking.add(row);
         }
-        sections.add(new TableSection("Ranking de médicos", List.of(
-                ReportColumn.text("doctor", "Médico"),
+        sections.add(new TableSection("Ranking de " + terms.professionals(), List.of(
+                ReportColumn.text("doctor", terms.professionalLabel()),
                 ReportColumn.number("appointments", "Citas"),
                 ReportColumn.number("noShows", "No-shows"),
                 ReportColumn.currency("revenue", "Ingresos")
         ), ranking));
 
-        return new ReportResult(key(), "Productividad Médica", null, generatedAt(),
+        return new ReportResult(key(), "Productividad por " + terms.professional(), null, generatedAt(),
                 rangeOf(q), kpis, sections);
     }
 }

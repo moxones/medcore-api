@@ -1,5 +1,7 @@
 package com.medical.medcore.identity.dto;
 
+import com.medical.medcore.identity.domain.ProfileField;
+
 import java.util.List;
 
 public record UserMeResponse(
@@ -11,6 +13,7 @@ public record UserMeResponse(
         String lastName,
         Long tenantId,
         boolean profileCompleted,
+        List<ProfileField> missingProfileFields,
         boolean mustChangePassword,
         List<Long> branchIds
 ) {

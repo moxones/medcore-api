@@ -286,4 +286,42 @@ public interface ReportingAppointmentRepository extends Repository<Appointment, 
                                      @Param("to") LocalDateTime to,
                                      @Param("applyBranch") boolean applyBranch,
                                      @Param("branchIds") List<Long> branchIds);
+
+    @Query(value = """
+            SELECT COALESCE(a.cancellation_origin, 'UNKNOWN') AS origin, COUNT(*) AS total
+            FROM appointments a
+            WHERE a.tenant_id = :tenantId
+              AND a.cancelled_at IS NOT NULL
+              AND a.scheduled_at >= :from AND a.scheduled_at < :to
+              AND (:applyBranch = false OR a.branch_id IN (:branchIds))
+            GROUP BY origin
+            ORDER BY total DESC
+            """, nativeQuery = true)
+    List<Object[]> cancellationOrigins(@Param("tenantId") Long tenantId,
+                                       @Param("from") LocalDateTime from,
+                                       @Param("to") LocalDateTime to,
+                                       @Param("applyBranch") boolean applyBranch,
+                                       @Param("branchIds") List<Long> branchIds);
+
+    @Query(value = """
+            SELECT a.doctor_id,
+                   COUNT(*) AS affected,
+                   SUM(CASE WHEN a.cancellation_origin IN ('PROFESSIONAL', 'ORGANIZATION') THEN 1 ELSE 0 END) AS cancelled,
+                   SUM(CASE WHEN a.needs_reschedule THEN 1 ELSE 0 END) AS pending
+            FROM appointments a
+            LEFT JOIN schedule_exceptions e ON e.id = a.schedule_exception_id
+            LEFT JOIN branch_closures c ON c.id = a.branch_closure_id
+            WHERE a.tenant_id = :tenantId
+              AND ((e.id IS NOT NULL AND e.start_date <= :toDate AND e.end_date >= :fromDate)
+                   OR (c.id IS NOT NULL AND c.closure_date >= :fromDate AND c.closure_date <= :toDate))
+              AND (:applyBranch = false OR a.branch_id IN (:branchIds))
+              AND (:doctorId = -1 OR a.doctor_id = :doctorId)
+            GROUP BY a.doctor_id
+            """, nativeQuery = true)
+    List<Object[]> scheduleChangeImpact(@Param("tenantId") Long tenantId,
+                                        @Param("fromDate") java.time.LocalDate fromDate,
+                                        @Param("toDate") java.time.LocalDate toDate,
+                                        @Param("applyBranch") boolean applyBranch,
+                                        @Param("branchIds") List<Long> branchIds,
+                                        @Param("doctorId") Long doctorId);
 }

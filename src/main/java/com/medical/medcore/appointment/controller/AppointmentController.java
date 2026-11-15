@@ -19,6 +19,8 @@ import com.medical.medcore.shared.api.ApiResponse;
 import com.medical.medcore.shared.api.PageableResponse;
 import com.medical.medcore.shared.security.annotation.RequireBooker;
 import com.medical.medcore.shared.security.annotation.RequireStaff;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -48,6 +50,7 @@ public class AppointmentController {
         return ApiResponse.ok(appointmentService.create(request), "Cita creada correctamente");
     }
 
+    @RequireModule(ClinicModule.PATIENT_PORTAL)
     @PostMapping("/public/bookings")
     public ApiResponse<PublicBookingResponse> publicBooking(@Valid @RequestBody PublicBookingRequest request) {
         return ApiResponse.ok(publicBookingService.registerAndBook(request), "Cuenta creada y cita reservada");
@@ -69,6 +72,7 @@ public class AppointmentController {
                 "Lista de citas");
     }
 
+    @RequireModule(ClinicModule.PATIENT_PORTAL)
     @GetMapping("/patients/me/appointments")
     public ApiResponse<PageableResponse<AppointmentResponse>> findMine(
             @RequestParam(defaultValue = "0") int page,

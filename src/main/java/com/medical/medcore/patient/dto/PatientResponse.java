@@ -1,5 +1,7 @@
 package com.medical.medcore.patient.dto;
 
+import com.medical.medcore.patient.domain.PortalAccountStatus;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -23,6 +25,7 @@ public record PatientResponse(
         Boolean hasAccount,
         String userEmail,
         Boolean accountActive,
+        PortalAccountStatus accountStatus,
         Boolean isActive,
         LocalDateTime createdAt
 ) {

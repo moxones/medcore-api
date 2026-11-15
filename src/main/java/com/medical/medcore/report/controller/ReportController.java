@@ -5,6 +5,8 @@ import com.medical.medcore.report.ReportFormat;
 import com.medical.medcore.report.ReportQuery;
 import com.medical.medcore.report.ReportService;
 import com.medical.medcore.shared.api.ApiResponse;
+import com.medical.medcore.platform.domain.ClinicModule;
+import com.medical.medcore.shared.security.annotation.RequireModule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +23,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/reports")
 @RequiredArgsConstructor
+@RequireModule(ClinicModule.REPORTS)
 public class ReportController {
 
     private final ReportService reportService;

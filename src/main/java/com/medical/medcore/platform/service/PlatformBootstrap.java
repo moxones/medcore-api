@@ -5,6 +5,7 @@ import com.medical.medcore.identity.repository.UserRepository;
 import com.medical.medcore.identity.service.PersonData;
 import com.medical.medcore.identity.service.PersonRegistry;
 import com.medical.medcore.identity.service.UserAccounts;
+import com.medical.medcore.platform.domain.ClinicModule;
 import com.medical.medcore.platform.domain.Tenant;
 import com.medical.medcore.platform.domain.TenantStatus;
 import com.medical.medcore.platform.repository.TenantRepository;
@@ -15,7 +16,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import com.medical.medcore.shared.tenancy.TenantContext;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Set;
 
@@ -28,11 +30,13 @@ public class PlatformBootstrap implements ApplicationRunner {
     private static final String BOOTSTRAP_DOCUMENT_NUMBER = "00000001";
 
     private final TenantRepository tenantRepository;
+    private final TenantModuleService moduleService;
     private final UserRepository userRepository;
     private final PersonRegistry personRegistry;
     private final UserAccounts userAccounts;
+    private final TransactionTemplate transactionTemplate;
 
-    @Value("${app.bootstrap.platform-subdomain:healthcare}")
+    @Value("${app.bootstrap.platform-subdomain:admin}")
     private String platformSubdomain;
 
     @Value("${app.bootstrap.platform-name:MedCore}")
@@ -45,11 +49,14 @@ public class PlatformBootstrap implements ApplicationRunner {
     private String superAdminPassword;
 
     @Override
-    @Transactional
     public void run(ApplicationArguments args) {
         if (superAdminEmail.isBlank() || superAdminPassword.isBlank()) {
             return;
         }
+        TenantContext.runAsSystem(() -> transactionTemplate.executeWithoutResult(status -> bootstrap()));
+    }
+
+    private void bootstrap() {
         if (userRepository.existsByRoleCode(RoleConstants.SUPER_ADMIN)) {
             return;
         }
@@ -59,6 +66,7 @@ public class PlatformBootstrap implements ApplicationRunner {
                         .name(platformName)
                         .status(TenantStatus.ACTIVE)
                         .build()));
+        moduleService.replace(platform.getId(), ClinicModule.all());
         Person person = personRegistry
                 .findByDocument(platform.getId(), BOOTSTRAP_DOCUMENT_TYPE, BOOTSTRAP_DOCUMENT_NUMBER)
                 .orElseGet(() -> personRegistry.create(platform.getId(), new PersonData(

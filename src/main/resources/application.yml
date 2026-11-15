@@ -24,6 +24,11 @@ spring:
       connection-timeout: 20000
       max-lifetime: 1800000
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
+
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -42,6 +47,17 @@ spring:
   jackson:
     time-zone: America/Lima
 
+  # Solo se usa si SPRING_MAIL_HOST está definido (ver NotificationConfig).
+  mail:
+    port: ${SPRING_MAIL_PORT:587}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
 booking:
   lead-time-minutes: ${BOOKING_LEAD_TIME_MINUTES:15}
   time-zone: ${BOOKING_TIME_ZONE:America/Lima}
@@ -53,18 +69,39 @@ security:
     refresh-expiration: 604800000
 
 app:
+  tenancy:
+    base-domains: ${APP_BASE_DOMAINS:pemedcore.xyz,localhost}
+    allow-header: ${APP_TENANT_HEADER_ALLOWED:false}
+    cache-seconds: ${APP_TENANT_CACHE_SECONDS:30}
+  recaptcha:
+    enabled: ${RECAPTCHA_ENABLED:false}
+    site-key: ${RECAPTCHA_SITE_KEY:}
+    secret-key: ${RECAPTCHA_SECRET_KEY:}
+    min-score: ${RECAPTCHA_MIN_SCORE:0.5}
+  subscriptions:
+    enforce: ${SUBSCRIPTIONS_ENFORCE:true}
+    grace-days: ${SUBSCRIPTIONS_GRACE_DAYS:7}
   rate-limit:
     max-requests: ${RATE_LIMIT_MAX_REQUESTS:300}
+    auth-max-requests: ${RATE_LIMIT_AUTH_MAX_REQUESTS:30}
     window-ms: ${RATE_LIMIT_WINDOW_MS:60000}
   auth:
+    refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:true}
     max-failed-attempts: ${AUTH_MAX_FAILED_ATTEMPTS:5}
     lock-minutes: ${AUTH_LOCK_MINUTES:15}
-    reset-token-minutes: ${AUTH_RESET_TOKEN_MINUTES:30}
+    reset-code-minutes: ${AUTH_RESET_CODE_MINUTES:10}
+    email-code-minutes: ${AUTH_EMAIL_CODE_MINUTES:10}
+    code-max-attempts: ${AUTH_CODE_MAX_ATTEMPTS:5}
+    code-resend-seconds: ${AUTH_CODE_RESEND_SECONDS:60}
+    activation-token-hours: ${AUTH_ACTIVATION_TOKEN_HOURS:72}
+    onboarding-cache-seconds: ${AUTH_ONBOARDING_CACHE_SECONDS:30}
     expose-reset-token: ${AUTH_EXPOSE_RESET_TOKEN:false}
   mail:
     from: ${MAIL_FROM:no-reply@medcore.local}
+    # Dirección web donde se abren los enlaces de los correos; {subdomain} se reemplaza por el de la organización.
+    link-base-url: ${APP_PUBLIC_URL:http://{subdomain}.localhost:4200}
   bootstrap:
-    platform-subdomain: ${BOOTSTRAP_PLATFORM_SUBDOMAIN:healthcare}
+    platform-subdomain: ${BOOTSTRAP_PLATFORM_SUBDOMAIN:admin}
     platform-name: ${BOOTSTRAP_PLATFORM_NAME:MedCore}
     super-admin-email: ${BOOTSTRAP_SUPER_ADMIN_EMAIL:}
     super-admin-password: ${BOOTSTRAP_SUPER_ADMIN_PASSWORD:}
@@ -76,10 +113,14 @@ spring:
       on-profile: dev
 
 app:
+  tenancy:
+    allow-header: ${APP_TENANT_HEADER_ALLOWED:true}
   rate-limit:
     max-requests: ${RATE_LIMIT_MAX_REQUESTS:6000}
+    auth-max-requests: ${RATE_LIMIT_AUTH_MAX_REQUESTS:6000}
   auth:
     expose-reset-token: ${AUTH_EXPOSE_RESET_TOKEN:true}
+    refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:false}
 
 logging:
   level:

@@ -9,6 +9,7 @@ import com.medical.medcore.doctor.domain.DoctorBranch;
 import com.medical.medcore.branch.repository.BranchRepository;
 import com.medical.medcore.doctor.repository.DoctorBranchRepository;
 import com.medical.medcore.doctor.repository.DoctorRepository;
+import com.medical.medcore.platform.service.TenantTerminology;
 import com.medical.medcore.shared.tenancy.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class DoctorBranchService {
     private final DoctorRepository doctorRepository;
     private final BranchRepository branchRepository;
     private final DoctorBranchRepository doctorBranchRepository;
+    private final TenantTerminology terminology;
 
     private Doctor requireDoctorInTenant(Long doctorId) {
         Long tenantId = TenantContext.requireTenantId();
@@ -135,10 +137,7 @@ public class DoctorBranchService {
     }
 
     private DoctorBranchResponse toDoctorResponse(DoctorBranch db) {
-        var person = db.getDoctor().getPerson();
-        String fullName = person != null
-                ? "Dr. " + person.getFirstName() + " " + person.getLastName()
-                : null;
+        String fullName = terminology.professionalName(db.getDoctor().getPerson());
         return new DoctorBranchResponse(
                 db.getId(),
                 db.getDoctor().getId(),

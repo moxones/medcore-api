@@ -1,5 +1,6 @@
 package com.medical.medcore.report.provider.doctor;
 
+import com.medical.medcore.platform.domain.ClinicModule;
 import com.medical.medcore.report.dto.BarsSection;
 import com.medical.medcore.report.dto.ReportBar;
 import com.medical.medcore.report.dto.ReportColumn;
@@ -39,6 +40,11 @@ public class DoctorPrescriptionsProvider extends BaseReportProvider implements R
     @Override
     public Set<String> allowedRoles() {
         return Set.of(RoleConstants.DOCTOR);
+    }
+
+    @Override
+    public Set<ClinicModule> requiredModules() {
+        return Set.of(ClinicModule.CONSULTATION);
     }
 
     @Override

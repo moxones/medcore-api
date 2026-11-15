@@ -20,7 +20,7 @@ public class CurrentUserResolver {
     public Long resolveDoctorId(ReportContext ctx) {
         Long personId = personId(ctx);
         return doctorRepository.findByPersonIdAndTenantId(personId, ctx.tenantId())
-                .orElseThrow(() -> new AccessDeniedException("El usuario no tiene un médico asociado"))
+                .orElseThrow(() -> new AccessDeniedException("El usuario no tiene un perfil profesional asociado"))
                 .getId();
     }
 

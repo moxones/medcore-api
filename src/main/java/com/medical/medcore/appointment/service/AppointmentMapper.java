@@ -96,6 +96,11 @@ public class AppointmentMapper {
                 appointment.getPrice(),
                 appointment.getCancelReason(),
                 appointment.getCancelledAt(),
-                appointment.getNoShowAt());
+                appointment.getNoShowAt(),
+                appointment.isFlaggedForReschedule(),
+                appointment.getRescheduleCause() != null ? appointment.getRescheduleCause().name() : null,
+                appointment.getRescheduleNote(),
+                appointment.getRescheduleFlaggedAt(),
+                appointment.getCancellationOrigin() != null ? appointment.getCancellationOrigin().name() : null);
     }
 }

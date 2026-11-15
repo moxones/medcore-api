@@ -3,10 +3,12 @@ package com.medical.medcore.identity.service;
 import com.medical.medcore.identity.domain.Person;
 import com.medical.medcore.identity.domain.Role;
 import com.medical.medcore.identity.domain.User;
+import com.medical.medcore.identity.repository.PasswordResetTokenRepository;
 import com.medical.medcore.identity.repository.RoleRepository;
 import com.medical.medcore.identity.repository.UserRepository;
 import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.shared.exception.ConflictException;
+import com.medical.medcore.shared.security.TokenHasher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -27,6 +29,7 @@ public class UserAccounts {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -48,6 +51,26 @@ public class UserAccounts {
                 .roles(new HashSet<>(roles))
                 .build();
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public User createPendingActivation(Long tenantId, Person person, String email, Set<Role> roles) {
+        User user = create(tenantId, person, email, TokenHasher.newOpaqueToken(), roles);
+        user.setPendingActivation(true);
+        user.setPasswordChangedAt(null);
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User claimPending(User pending, String email, String rawPassword) {
+        String normalizedEmail = requireEmail(email);
+        if (!normalizedEmail.equals(pending.getEmail())) {
+            assertEmailAvailable(normalizedEmail, pending.getTenantId());
+            pending.setEmail(normalizedEmail);
+        }
+        pending.changePassword(encode(rawPassword), LocalDateTime.now(), false);
+        tokenRepository.invalidatePending(pending.getId(), LocalDateTime.now());
+        return userRepository.save(pending);
     }
 
     @Transactional(readOnly = true)

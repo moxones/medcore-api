@@ -14,13 +14,11 @@ import com.medical.medcore.report.provider.BaseReportProvider;
 import com.medical.medcore.report.support.BranchFilter;
 import com.medical.medcore.report.support.ReportFormatter;
 import com.medical.medcore.report.repository.ReportingAppointmentRepository;
-import com.medical.medcore.report.repository.ReportingScheduleRepository;
+import com.medical.medcore.schedule.service.ScheduleCapacity;
 import com.medical.medcore.shared.security.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.sql.Time;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,7 +29,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ClinicBranchUtilizationProvider extends BaseReportProvider implements ReportProvider {
 
-    private final ReportingScheduleRepository schedules;
+    private final ScheduleCapacity scheduleCapacity;
     private final ReportingAppointmentRepository appointments;
 
     @Override
@@ -51,13 +49,14 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
 
         Map<Long, String> branchNames = new LinkedHashMap<>();
         Map<Long, Long> capacity = new LinkedHashMap<>();
-        for (Object[] s : schedules.activeSchedules(t, q.from(), q.to(), bf.apply(), bf.branchIds())) {
-            long branchId = asLong(s[0]);
-            branchNames.putIfAbsent(branchId, asString(s[1]));
-            int dayOfWeek = (int) asLong(s[2]);
-            long slotsPerDay = slotsPerDay(s[3], s[4], (int) asLong(s[5]), (int) asLong(s[6]));
-            long occurrences = weekdayOccurrences(q.from(), q.to(), dayOfWeek);
-            capacity.merge(branchId, slotsPerDay * occurrences, Long::sum);
+        Map<Long, Long> unavailableMinutes = new LinkedHashMap<>();
+        Map<Long, Long> extraMinutes = new LinkedHashMap<>();
+        for (ScheduleCapacity.Usage usage : scheduleCapacity.usage(q.from(), q.to(),
+                bf.apply() ? bf.branchIds() : null, null)) {
+            branchNames.putIfAbsent(usage.branchId(), usage.branchName());
+            capacity.merge(usage.branchId(), usage.slots(), Long::sum);
+            unavailableMinutes.merge(usage.branchId(), usage.blockedMinutes() + usage.closedMinutes(), Long::sum);
+            extraMinutes.merge(usage.branchId(), usage.extraMinutes(), Long::sum);
         }
 
         Map<Long, Long> occupied = new LinkedHashMap<>();
@@ -94,6 +93,8 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
             row.put("capacity", cap);
             row.put("occupied", occ);
             row.put("pct", branchPct);
+            row.put("unavailable", hours(unavailableMinutes.getOrDefault(e.getKey(), 0L)));
+            row.put("extra", hours(extraMinutes.getOrDefault(e.getKey(), 0L)));
             table.add(row);
         }
         if (!bars.isEmpty()) {
@@ -103,44 +104,17 @@ public class ClinicBranchUtilizationProvider extends BaseReportProvider implemen
                 ReportColumn.text("branch", "Sucursal"),
                 ReportColumn.number("capacity", "Capacidad"),
                 ReportColumn.number("occupied", "Ocupados"),
-                ReportColumn.percent("pct", "% Ocupación")
+                ReportColumn.percent("pct", "% Ocupación"),
+                ReportColumn.number("unavailable", "Horas no disponibles"),
+                ReportColumn.number("extra", "Horas extra")
         ), table));
 
         return new ReportResult(key(), "Ocupación de Agenda",
-                "Capacidad estimada a partir de los horarios médicos.", generatedAt(),
+                "Capacidad según el horario efectivo: descuenta ausencias y feriados y suma horas extra.", generatedAt(),
                 rangeOf(q), kpis, sections);
     }
 
-    private long slotsPerDay(Object startTime, Object endTime, int slotDurationMinutes, int maxPatientsPerSlot) {
-        if (slotDurationMinutes <= 0 || !(startTime instanceof Time start) || !(endTime instanceof Time end)) {
-            return 0;
-        }
-        long minutes = (end.getTime() - start.getTime()) / 60000L;
-        if (minutes <= 0) {
-            return 0;
-        }
-        long slots = minutes / slotDurationMinutes;
-        return slots * Math.max(1, maxPatientsPerSlot);
-    }
-
-    private long weekdayOccurrences(LocalDate from, LocalDate to, int dayOfWeek) {
-        long count = 0;
-        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
-            if (matchesDayOfWeek(d, dayOfWeek)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private boolean matchesDayOfWeek(LocalDate date, int dayOfWeek) {
-        int iso = date.getDayOfWeek().getValue();
-        if (dayOfWeek >= 1 && dayOfWeek <= 7) {
-            return iso == dayOfWeek;
-        }
-        if (dayOfWeek == 0) {
-            return iso == 7;
-        }
-        return false;
+    private double hours(long minutes) {
+        return Math.round(minutes / 6.0) / 10.0;
     }
 }

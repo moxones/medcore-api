@@ -1,5 +1,6 @@
 package com.medical.medcore.report.provider.reception;
 
+import com.medical.medcore.platform.domain.ClinicModule;
 import com.medical.medcore.report.dto.BarsSection;
 import com.medical.medcore.report.dto.ReportBar;
 import com.medical.medcore.report.dto.ReportColumn;
@@ -39,6 +40,11 @@ public class ReceptionCashSummaryProvider extends BaseReportProvider implements 
     @Override
     public Set<String> allowedRoles() {
         return Set.of(RoleConstants.RECEPTIONIST);
+    }
+
+    @Override
+    public Set<ClinicModule> requiredModules() {
+        return Set.of(ClinicModule.BILLING);
     }
 
     @Override

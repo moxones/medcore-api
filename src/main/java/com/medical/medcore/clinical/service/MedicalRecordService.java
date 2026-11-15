@@ -32,7 +32,6 @@ import com.medical.medcore.identity.repository.UserRepository;
 import com.medical.medcore.patient.domain.Patient;
 import com.medical.medcore.patient.repository.PatientRepository;
 
-import com.medical.medcore.shared.audit.ClinicalAuditContext;
 import com.medical.medcore.shared.exception.BadRequestException;
 import com.medical.medcore.shared.exception.NotFoundException;
 import com.medical.medcore.clinical.dto.CertificateRequest;
@@ -78,7 +77,6 @@ public class MedicalRecordService {
     private final PatientRepository patientRepository;
     private final AppointmentRepository appointmentRepository;
     private final UserRepository userRepository;
-    private final ClinicalAuditContext clinicalAuditContext;
     private final AppointmentService appointmentService;
     private final BookingPolicy bookingPolicy;
 
@@ -106,7 +104,6 @@ public class MedicalRecordService {
 
     @Transactional
     public MedicalEntryResponse addEntry(CreateMedicalEntryRequest request) {
-        clinicalAuditContext.apply();
         Long tenantId = TenantContext.requireTenantId();
         Long userId = TenantContext.requireCurrentUserId();
 
@@ -175,7 +172,6 @@ public class MedicalRecordService {
 
     @Transactional
     public MedicalEntryResponse signEntry(Long entryId) {
-        clinicalAuditContext.apply();
         Long tenantId = TenantContext.requireTenantId();
         Long userId = TenantContext.requireCurrentUserId();
 
@@ -195,7 +191,6 @@ public class MedicalRecordService {
 
     @Transactional
     public MedicalEntryResponse.OrderItem addOrderResult(Long orderId, OrderResultRequest request) {
-        clinicalAuditContext.apply();
         Long tenantId = TenantContext.requireTenantId();
         Long userId = TenantContext.getCurrentUserId();
 
@@ -326,7 +321,7 @@ public class MedicalRecordService {
             return;
         }
         if (entry.getCreatedBy() == null || !entry.getCreatedBy().equals(userId)) {
-            throw new ForbiddenException("Solo el médico que registró la nota puede modificarla o firmarla");
+            throw new ForbiddenException("Solo el profesional que registró la nota puede modificarla o firmarla");
         }
     }
 

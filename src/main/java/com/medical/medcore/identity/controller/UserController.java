@@ -74,6 +74,11 @@ public class UserController {
         return ApiResponse.message("Contraseña restablecida");
     }
 
+    @PostMapping("/{id}/invitation")
+    public ApiResponse<UserResponse> resendInvitation(@PathVariable Long id) {
+        return ApiResponse.ok(userService.resendInvitation(id), "Invitación reenviada");
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deactivate(@PathVariable Long id) {
         userService.updateStatus(id, false);

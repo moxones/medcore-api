@@ -48,4 +48,9 @@ public class SuperAdminUserController {
         userService.setPassword(id, request.newPassword());
         return ApiResponse.message("Contraseña actualizada");
     }
+
+    @PostMapping("/{id}/invitation")
+    public ApiResponse<UserResponse> resendInvitation(@PathVariable Long id) {
+        return ApiResponse.ok(userService.resendInvitation(id), "Invitación reenviada");
+    }
 }
